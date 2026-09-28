@@ -117,7 +117,7 @@ So ask.
    hardcode endpoints, keys or connection strings.
    ```
 
-   The branch matters. It gives you one clean thing to diff, review, and throw away if the run goes sideways. The "must still run locally" constraint is your acceptance test. Readiness work that only functions once Azure resources exist can't be verified in this module, since we have not provisioning Azure resources yet. A broken local run is the fastest signal that the agent overreached. Every integration it adds should read its own configuration and fall back quietly when that configuration is absent, so the app you run at the end behaves exactly like the one you ran at the start.
+   The branch matters. It gives you one clean thing to diff, review, and throw away if the run goes sideways. The "must still run locally" constraint is your acceptance test. Readiness work that only functions once Azure resources exist can't be verified in this module, since we have not provisioned Azure resources yet. A broken local run is the fastest signal that the agent overreached. Every integration it adds should read its own configuration and fall back quietly when that configuration is absent, so the app you run at the end behaves exactly like the one you ran at the start.
 
 1. **Approve as it goes.** It will re-run the build and ask for approval to run commands. Grant them, and read the per-phase summaries as they appear instead of waiting until the end.
 

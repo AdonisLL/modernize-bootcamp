@@ -12,6 +12,7 @@ Caldova Retail runs on .NET Framework 4.8, the last version of a platform that i
 
 ## 📋 What You'll Do
 
+- 👀 See the storefront as it runs on-premises today, then replicate it locally
 - 🔎 Assess a legacy codebase with the GitHub Copilot upgrade agent
 - 🔄 Migrate the storefront from .NET Framework 4.8 to .NET 10
 - 📋 Review the generated upgrade plan and hold it to scope
@@ -20,6 +21,28 @@ Caldova Retail runs on .NET Framework 4.8, the last version of a platform that i
 > 💡 **SCOPE**
 >
 > This module changes the **framework only**. The database stays on SQL Server and the UI stays on MVC — the data tier and the frontend are modernized in later modules. Keeping the scope tight is what makes the upgrade verifiable: if the app behaves the same afterwards, the framework change is sound.
+
+## 👀 See the app as it runs today
+
+Caldova Retail is already running on-premises, on a Windows Server behind IIS. Before you change anything, go and look at the thing you are about to modernize.
+
+1. Open **Edge** from the bottom menu of your machine:
+
+   ![Open Edge](./images/open-edge.png)
+
+2. Open the bookmarked application, running on-premises:
+
+   ![Open Application](./images/open-eshop-on-prem.png)
+
+Walk around the storefront for a minute and notice how it behaves:
+
+- The product catalog loads, with images
+- Sign-in works for both accounts — credentials are in [Demo logins](../../../docs/logins.md)
+- Adding an item to the cart persists across page loads
+
+This is the application exactly as a customer has it today: one Windows server, one IIS site, no containers and no cloud.
+
+The rest of this module happens on your own machine, so the first job is to get this same app running locally.
 
 ## 🛠️ Setup
 
@@ -67,7 +90,7 @@ Then, type in the chatbox and submit this prompt:
 This is a .NET Framework 4.8 ASP.NET MVC app using packages.config. Restore its packages with nuget.exe, build the solution with MSBuild, and launch it locally with IIS Express. Tell me the URL when it is running.
 ```
 
-Once it loads, walk the app and record what you see. For a small baseline, confirm:
+Once it loads, walk the app and confirm your local copy matches the on-premises one you looked at earlier:
 
 - [ ] The product catalog loads, with images
 - [ ] Sign-in works for both accounts — credentials are in [Demo logins](../../../docs/logins.md)
@@ -75,7 +98,7 @@ Once it loads, walk the app and record what you see. For a small baseline, confi
 
 If the build fails with a missing `csc.exe`, see [Handling Common Issues](#-handling-common-issues) below.
 
-Now that you have seen how the app looks and behaves on .NET Framework 4.8, you have the baseline everything that follows is measured against. Time to modernize it.
+You now have the on-premises app reproduced on your own machine, on .NET Framework 4.8, behaving exactly as it does on the server. That is the baseline everything that follows is measured against. Time to modernize it.
 
 ## 🤖 How GitHub Copilot Modernization Works
 
@@ -136,7 +159,7 @@ The rest of this module is the upgrade itself, in five steps.
 
 3. Copilot chat should open with the **Upgrade** agent already selected. If the Upgrade agent is not selected please select the agent picker, and navigate to the "Upgrade" one. Unlike the general agents, which work from model memory and improvise, the Upgrade agent runs a structured, tool-verified migration workflow — loading current tested scenario instructions, using real compiler and dependency analysis to find breaking changes, and validating each task with a build before moving on.
 
-    ![Copilot Chat opens with the Upgrade agent selected](./images/upgrade-agent-chat.png)
+   ![Copilot Chat opens with the Upgrade agent selected](./images/upgrade-agent-chat.png)
 
    > 💡 **PICKING A MODEL**
    >
@@ -415,6 +438,7 @@ The products are not loading. Check that the SQL Server connection string was ca
 ### Runtime Error Resolution
 
 For runtime errors:
+
 1. Stop the running app (`Shift+F5`, or press `Ctrl+C` in the terminal running `dotnet run`)
 2. Copy the error message from the **Terminal** or **Debug Console** panel
 3. Paste it into the Copilot chat for analysis and resolution
