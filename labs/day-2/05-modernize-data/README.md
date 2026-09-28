@@ -4,6 +4,12 @@
 
 **Scenario:** Migrate the eShop database from SQL Server on VM to Azure SQL Database by using Azure Database Migration Service (DMS).
 
+Lab 04 now provisions exactly one target. The standard path selects
+`LAB04_DATABASE_MODE=azureSql`; complete the Azure SQL Database challenges
+below. If an instructor selected `sqlMi`, use the SQL Managed Instance challenge
+as the target-specific path and do not expect an Azure SQL logical server or
+private endpoint to exist.
+
 Now that the application is upgraded and moved to Azure PaaS services, it is time to modernize and migrate the database. 
 
 ***Security rule:*** *Never expose passwords, storage keys, SAS tokens, or connection strings in screenshots or submissions. Do not enable public RDP or public Azure SQL access unless the instructor explicitly requires it.*
@@ -17,14 +23,13 @@ Students will learn to:
 * Learn about diffenent authentication mechanisms in SQL server
 * Learn about different types of backups and migration techniques
 * Run an assessment of the source SQL Server database, analyze the report
-* Create an Azure SQL Database resource as migration target.
+* Use the managed database target selected during Lab 04.
 * Configure private connectivity to the Azure SQL Database from both the Azure VM and also target PaaS services
 * Create Azure Data Migration Service (DMS) and configure to run the "Self hosted Integration Runtime" on the Azure VM.
 * Run DMS offline migration to Azure SQLDB
 * Run and monitor an offline migration. Verify migrated data by query only.
-* Create a SQL Managed Instance as another target for migration.
-* Run DMS online migration to Azure SQL MI. Verify migration.
-* Change the application connection string to point to SQL MI.
+* When `sqlMi` was selected in Lab 04, run DMS online migration to SQL MI and verify migration.
+* Configure the application with the database FQDN exported by Lab 04.
 * Document differences between Azre SQLDB and Azire SQL MI and lessons learned. 
 
 ## Challenge 1 — Validate the source database
@@ -32,16 +37,28 @@ Students will learn to:
 ### Student tasks
 
 1. Connect to the provided VM using the instructor-approved method.
-2. Confirm that SQL Server services are running.
-3. Determine the database credential the retail app is using.
-4. Connect to the local SQL Server with SQL Server Management Studio (SSMS).
-5. Record the SQL Server version,edition, database size, collation, disk file name and size of database files and "recovery model"
-6. Also note down all the "page" names displayed when checking on database "properties" section.
-6. Map the VM data drives to azure disks. Besides size what else is different between the two disks and why so ?
-7. Verify that the VM has no unintended public exposure.
-8. What are the different ways you can connect to this eshop database ?
-9. (Research on this) What is a logical and phusical backup of SQL server ? What does
-10. Run this query using SSMS 
+2. Confirm that SQL Server services are running - service named "SQL Server (MSSQLSERVER)"
+3. Determine the database credential the retail app is using. You can use Github coplilot chat to find out from the application source codebase.
+4. Connect to the local SQL Server with SQL Server Management Studio (SSMS) using "sa" SQL login given to you
+5. Record the SQL Server version,edition - right click on the server and type "new query". Execute the following SQL
+
+```sql
+Use master;
+select @@version ;
+```
+7. Right click on database eshop and click on peroperties to determine database size, collation, disk file name and size of database files and "recovery mode", like [![this](./images/Challenge_1_db_properties.png)](./images/Challenge_1_db_properties.png)
+8. While there, also note down all the "page" names displayed when checking on database "properties" section.
+9. <u>Note do this only if this database VM is on Azure or some other cloud -->  </u>Map the VM data drives to azure disks. You can do find the SQL data and log file information from the "Files" page. Besides size what else is different between the two disks and why so ?
+10. Verify that the VM has no unintended public exposure.
+11. What are the different ways tuauthenticate to this eshop SQL database ?
+12. (Research on this) What is a logical and physical backup of SQL server ? How is recovery mode and logical backup related ?
+13. Put the database into full recovery mode in SSMS running this query
+
+```sql
+alter database eshop set recovery full ;
+```
+
+11. Run this query using SSMS. Investigate the results.
 
 ```text
 DBCC CHECKDB (N'eShop') ;
@@ -62,112 +79,152 @@ DBCC CHECKDB (N'eShop') ;
 
 1. Using SSMS, right click on the server and choose "Migrate SQL Server"
 2. <u>Do not Migrate or Upgrade the database</u>. Run a "Migration rediness assessment".
-3. Investigate the report. Find out compatibility issues with different SQL targets
+3. Investigate the report. Find out compatibility issues with different SQL targets [![Assessment](./images/Challenge_2_assessment_report.png)](./images/Challenge_2_assessment_report.png)
+
 
 ## Success criteria
 
 * You learn different options of running SQL on Azure
 * Understand the assessment report and the comptatibility issues.
 
-## ~~Areas to examine~~   ( Only if time permits)
-
-* Cross-database dependencies
-* SQL Agent jobs
-* Server-level objects and logins
-* Windows authentication dependencies
-* Unsupported data types or features
-* CLR objects
-* Three-part names
-* Database mail and linked servers
-
 ## Challenge 3 — Create a database migration service for migration
 
 ## Student tasks
 
 1. In the same region where you will deploy Azure SQL as a migration target, deploy Azure Data Migration Services (DMS)
-2. After the DMS is installed, deploy and configure a self-hosted Integration Runtime on the source database server.
+2. After the DMS is installed, deploy and configure a self-hosted Integration Runtime on the source database server. Go to Settings --> Integration runtime on the portal and follow the instructions. See here [![here](./images/Challenge_3_DMS_SHIR_instructions.png)](./images/Challenge_3_DMS_SHIR_instructions.png)
 3. Verify that the "SHIR" shows as online on DMS in Azure portal. 
-4. <u>Note (/u> ) only that the public IP of the SHIR nodes show up on DMS
+4. <u>Note:</u> only the public IP of the SHIR nodes show up on DMS
 
 ## Success criteria
 
 - DMS is employed with SHIR shown as online
 
-
-## Challenge 4 — Offline Migraton to SQLDB
-
-## Student tasks
-
-1. Create an Azure SQL logical server
-
-   a) Make sure it allows login using SQL authentication.  
-   b) It uses the appropriate service tier/size  
-   c) Configured to be accessible from the Lab VM using private endpoint.
-   d) Create an empty database called "eshop"
-
-2. Start a migraton to Azure SQL databaase using offline method. When it asks "is your SQL server instance tracked in azure ?" choose yes or no - based on the following
-
-<u>Note</u> DMS needs to keep track of migration actions in a separagte SQL database. This is <b> not </b> your target database for migration.
-
-Answer yes if it is either 
-
-a) an Azure VM registered with the SQL IaaS Agent Extension ( <u>"SqlIaasExtension"</u>) - in which case the VM 
-appears as a "SQL Virtual machine" on azure
-
-b) or it is on-premises /or on other clouds and has Azure.Arcdata extensions installed. 
-
-If not so, then choose no and DMS will create a [tracking database](https://learn.microsoft.com/en-us/azure/dms/dms-overview#tracking-resource) to track progress of migration. Choose a resource group, region and name of the tracking database the rest will be done by DMS automatically 
-
-3. Connect to the source database SQL server using SQL authentication.
-
-4. Next, within the source SQL server, choose the database that we want to migrate for the application.
-This is the same database the application connects to, as you found in challenge 1.
-
-5. Connect to the target Azure SQL database you created above, using SQL login
-
-6. Choose eshop as the target database
-
-7. Select all the tabes to copy. Make sure "Migrate missing schema" is checked. 
-
-8. Complete the migration.
-
-  
-## Success criteria
-
-* SQL query into Azure SQLDB shows the same data in tables
-
-
 ### Extra Challenge 
-* Going back to database backups - during offline DMS imigration - how was the backup done in this case - physical, logical or something else ? 
-* If you were able to take a .bacpac backup then answer the following 
-* Find out what the bacpac contains
-* What kind of backup creates a .bacpac file ?
-* Examine the .bacpac file by renaming it to .zip extension. Look into the model.xml file. 
 
+- Can you have multuple SHIR using the same DMS service ?
 
-## Challenge 5 — Online Migraton to SQL Managed Instance
+## Challenge 4 — Online Migraton to SQL Managed Instance
+
+Complete this challenge only when Lab 04 was provisioned with
+`LAB04_DATABASE_MODE=sqlMi`. The managed instance and empty `eShop` database
+already exist; do not deploy an additional managed instance.
 
 ## Student tasks
 
-1. Use the SQL Managed Instance predeployed by the instructor. Do not create or
-   reprovision the instance.
+1. Create a SQL Managed instance - in an empty sublet of a Vnet. It should have authentication using entra and SQL enabled, note down the SQL admin credentials.
 
-2. Sign in to Azure and run:
+2. Connect to the SQL MI using SSMS using entra. Note: if using MCAPS subscription it will only allow an authentication using entra-login only. 
 
-```powershell
-.\assets\scripts\Enable-Lab04SqlMiPublicAccess.ps1 `
-  -SubscriptionId '<subscription-id>'
+<u>Note: </u> Your SQL MI may have a scheduled "start/stop" time. Make sure to have it started everyday before your work begins.
+
+3. DMS needs a backup of the source database to migrate - to Azure blob or file share. To backup to blob, follow these steps
+
+   - Verify if the database is in full recovery mode as you changed in challenge #1.
+
+   ```sql
+   SELECT
+      name, recovery_model_desc 
+   FROM sys.databases ;
+   ```
+
+   - Create a storage account in the same region where you have DMS and MI. Create a container in it.
+
+   - Ensure that the on-prem source server can connect to the storage account
+
+   - Create a SAS token for the storage account
+
+   - On the source SQL database, create a credential and verify it.
+
+   ```sql
+   CREATE credential [https://<stroage-account>.blob.core.windows.net/<container>>] WITH IDENTITY='SHARED ACCESS SIGNATURE', SECRET = '<sas_token>' ;
+
+   SELECT * from sys.credentials ;
+   ```
+
+   - Execute a full backup to this storage account in SSMS
+
+   ```sql
+   backup database eshop to URL = 'https://<stroage-account>.blob.core.windows.net/<container>/<backup-file-name' ;
+   ```
+
+4. <b> [Optional] </b> If your source VM is in Azure, it helps to have the "SqlIaasExtension" extension installed
+
+```shell
+az vm extension list -g <vm-resource-group> --vm-name <vm-name> -o table
 ```
 
-3. Connect to the public endpoint reported by the script using SSMS and a
-   Microsoft Entra authentication method. The endpoint uses TCP 3342.
+5. SQL MI should be able to read the backup to restore the backup of the source database from the storage account. To enable that, assign "storage blob data reader" role to the managed identity of your SQL MI
 
-4. If your public IP changes, rerun the script before reconnecting.
+   5a. First Find out the system assigned managed identity of the SQL Managed instance
 
-SQL authentication is intentionally disabled. The participant identity is the
-configured Microsoft Entra administrator for the lab database.
+   Enter the name of the resource group that contains the SQL managed instance:
 
-## Challenge 6  — Enable private endpoint
+```powershell
+$resourceGroup = Read-Host "Enter the SQL managed instance resource group"
+```
+
+Get the SQL managed instance and its identity from that resource group. This guide expects the resource group to contain exactly one SQL managed instance in a resource group:
+
+```powershell
+$managedInstanceDetails = @(
+    az sql mi list `
+        -g $resourceGroup `
+        --query "[].{SQLMI:name, IdentityType:identity.type, ManagedIdentity:identity.principalId}" `
+        --output json |
+        ConvertFrom-Json
+)
+
+if ($managedInstanceDetails.Count -ne 1)
+{
+    throw "Expected exactly one SQL managed instance in resource group '$resourceGroup', but found $($managedInstanceDetails.Count)."
+}
+
+$managedInstanceDetails | Format-Table -AutoSize
+$managedInstance = $managedInstanceDetails[0].SQLMI
+```
+
+Next find out the managed identity for the MI instance
+
+```powershell
+$miPrincipalId = az sql mi show `
+    -g $resourceGroup `
+    -n $managedInstance `
+    --query identity.principalId `
+    --output tsv
+```
+
+Finally, assign this managed identity "storage blob data reader" role for the storage account where you have your database backup kept.
+
+```powershell
+az role assignment create `
+    --assignee-object-id $miPrincipalId `
+    --assignee-principal-type ServicePrincipal `
+    --role "Storage Blob Data Reader" `
+    --scope $(az storage account show `
+        --name <backup-storage-account> `
+        --resource-group <backup-storage-account-rg> `
+        --query id --output tsv)
+```
+
+6. Now you are ready to start the migration. On azure portal for DMS, Click on new migration. Choose blob as the backup storage location and online as the migration mode. 
+
+7a. When it asks if "your SQL server instance is tracked in azure" - you can say yes <b>only if</b> the source VM is in azure with SQL extension installed, or is outside Azure and is SQL Arc enabled. If you click yes it should automatically find your SQL server based on your resoure group and location.
+
+7b. If you say no, then choose what is your source VM and specify a logical SQL server ( not your MI) where DMS can create a small SQL database to track migration progress for restartability.
+
+8. Next, choose your SQL MI as the target. 
+
+9. Now DMS will need to see the location of the backup you took earlier. Remember that DMS, the target SQL MI and the storage account - all need to be in the same Azure region. Also note that the database backup can be at the root folder or one folder under root in the container - not below that. The target database should not exist already - DMS restore creates the database from its physical backup
+
+10. Once the migration is complete, the migration goes to "ready to cutover" stage. Complete the migration
+
+11. Connnect to the eshop database on SQL MI. 
+
+12. Change the application connectivity to switch to SQL MI.
+#### Congratulations - you have migrated to Azure SQL
+
+## Challenge 5  — Enable private endpoint for SQL Managed Instance
 
 ## Student tasks
 
@@ -192,213 +249,7 @@ privatelink.database.windows.net <b>"privatelink.database.windows.net"</b>
 * TCP 1433 is reachable from the VM.
 * Public network access remains disabled.
 
-Challenge 6 — Prove end-to-end target connectivity
-
-## Student tasks
-
-Test each layer independently from the source VM:
-
-1. Resolve the Azure SQL server FQDN.
-2. Test TCP port 1433.
-3. Connect through SSMS using the normal server FQDN—not the private IP.
-4. Run:
-
-SELECT
- @@SERVERNAME AS ConnectedServer,
- DB\_NAME() AS ConnectedDatabase;
-
-## Success criteria
-
-Students demonstrate separate evidence for DNS, TCP connectivity, authentication, and database access.
-
-## Reflection
-
-Why does a successful port test not prove that authentication and database access will succeed?
-
-Challenge 7 — Configure migration identities and permissions
-
-## Student tasks
-
-1. Create or identify the SQL login used by DMS for the source.
-2. Grant the required source permissions, including access to metadata and data.
-3. Create or identify the target migration login.
-4. Grant the required Azure SQL roles and target database permissions.
-5. Test both connections outside DMS.
-
-## Minimum validation
-
-* Source user can read the selected tables and definitions.
-* Target user can create schema objects when schema migration is enabled.
-* Target user can insert data into the target tables.
-
-## Success criteria
-
-DMS credentials work against both endpoints without granting unnecessary permanent privileges.
-
-Challenge 8 — Create DMS and configure SHIR
-
-## Student tasks
-
-1. Register the required Azure resource provider if necessary.
-2. Create or reuse an Azure Database Migration Service instance.
-3. Configure a self-hosted integration runtime (SHIR).
-4. Install SHIR on the provided VM or another instructor-approved host.
-5. Register SHIR with the DMS authentication key.
-6. Confirm that the SHIR node appears online.
-7. Confirm that the installed version meets Microsoft’s current minimum requirement.
-8. Test source and target connectivity from the migration workflow.
-
-## Success criteria
-
-* DMS is ready.
-* SHIR is online and healthy.
-* Source and target connection tests succeed.
-
-Challenge 9 — Plan and start the offline migration
-
-## Student tasks
-
-1. Create a new SQL Server-to-Azure SQL Database offline migration.
-2. Select source database eShop.
-3. Map it to target database eShop.
-4. Review the **Migrate Missing schema** option.
-5. Select the required tables.
-6. Document the expected downtime and validation plan.
-7. Start the migration.
-
-## Success criteria
-
-Students can explain whether DMS will migrate schema, data, or both and understand that offline migration requires application downtime.
-
-Challenge 10 — Diagnose schema migration error 2060
-
-## Failure presented to students
-
-Schema Migration for database 'eShop' failed in state
-'MonitorSqlSchemaCopy'.
-
-Could not load file or assembly
-'System.Security.Principal.Windows, Version=5.0.0.0'.
-
-Error code 2060 — SqlSchemaCopyFailed
-
-## Student tasks
-
-1. Identify the failed migration stage.
-2. Determine whether the error proves a network failure.
-3. Revalidate DNS and TCP 1433.
-4. Inspect the SHIR service and version.
-5. Review DMS migration details and logs.
-6. Classify the likely fault domain:
-
-* Source database
-* Target database
-* Network
-* Authentication
-* Schema-copy runtime
-
-1. Explain why copying arbitrary DLLs or installing unsupported runtimes is unsafe.
-2. Propose a supported alternative.
-
-## Expected conclusion
-
-The error occurred in the schema-copy runtime. Private connectivity should be tested independently, but the assembly-loading message does not by itself indicate a network or schema compatibility failure.
-
-Challenge 11 — Generate and deploy the schema independently
-
-## Student tasks
-
-Using SSMS:
-
-1. Right-click source database eShop.
-2. Select **Tasks → Generate Scripts**.
-3. Script the database objects required by the application.
-4. Configure advanced options:
-
-* **Types of data to script:** Schema only
-* **Target engine:** Microsoft Azure SQL Database
-* **Script database create:** False
-
-1. Save the script as:
-
-C:\LabFiles\eShop-schema.sql
-
-1. Review the script for unsupported server-level or database-level statements.
-2. Connect to the Azure SQL eShop database.
-3. Ensure the SSMS database selector shows eShop.
-4. Remove or correct unsupported USE statements.
-5. Execute the script and document any remediation.
-
-## Verification
-
-SELECT COUNT(\*) AS TableCount
-FROM sys.tables;
-
-## Success criteria
-
-* Required schemas and tables exist in Azure SQL.
-* Deployment errors are resolved or documented.
-* No source data has been copied by the schema-only script.
-
-Challenge 12 — Rerun DMS as a data-only migration
-
-## Student tasks
-
-1. Create a new migration rather than reusing the failed run.
-2. Map source eShop to the precreated target eShop.
-3. Leave **Migrate Missing schema** unchecked.
-4. Select all required tables.
-5. Start the data migration.
-6. Monitor table-level progress.
-7. Record failed, skipped, and completed tables.
-
-## Success criteria
-
-* DMS bypasses the failed schema-copy path.
-* Required table data is copied successfully.
-* Every exception has an evidence-based disposition.
-
-Challenge 13 — Reconcile source and target
-
-## Student tasks
-
-Compare:
-
-* Schema and table counts
-* Row counts for every migrated table
-* Primary and foreign keys
-* Indexes
-* Views and stored procedures
-* Representative business records
-* Users and permissions
-
-Example row-count inventory:
-
-SELECT
- s.name AS SchemaName,
- t.name AS TableName,
- SUM(p.rows) AS RowCount
-FROM sys.tables AS t
-JOIN sys.schemas AS s
- ON s.schema\_id = t.schema\_id
-JOIN sys.partitions AS p
- ON p.object\_id = t.object\_id
-WHERE p.index\_id IN (0, 1)
-GROUP BY s.name, t.name
-ORDER BY s.name, t.name;
-
-## Required reconciliation table
-
-|  |  |  |  |  |  |
-| --- | --- | --- | --- | --- | --- |
-| **Schema** | **Table** | **Source rows** | **Target rows** | **Difference** | **Disposition** |
-| Example | ExampleTable | 0 | 0 | 0 | Matched |
-
-## Success criteria
-
-Every selected table is reconciled. Differences are investigated rather than silently accepted.
-
-Challenge 14 — Validate application readiness
+## Challenge 6  — Application readiness - Entra-id authentication for app
 
 ## Student tasks
 
@@ -412,7 +263,7 @@ Challenge 14 — Validate application readiness
    ```
 
 2. Connect to the Azure SQL `eShop` database as the configured Microsoft Entra administrator.
-3. Create a contained user for the Container App identity. Use a unique alias and its object ID so the database principal does not depend on Entra display-name uniqueness:
+3. Create a container user for the Container App identity. Use a unique alias and its object ID so the database principal does not depend on Entra display-name uniqueness:
 
    ```sql
    CREATE USER [caldova_retail_app] FROM EXTERNAL PROVIDER
@@ -438,49 +289,6 @@ Challenge 14 — Validate application readiness
 
 The Container App identity has only the required database roles, the connection string contains no password, and the student demonstrates that application readiness requires more than successful data copy.
 
-Challenge 15 — Complete the security and operations review
-
-## Student tasks
-
-1. Confirm that Azure SQL public network access remains disabled.
-2. Confirm that the VM has no unintended public exposure.
-3. Remove temporary migration permissions where appropriate.
-4. Rotate temporary credentials.
-5. Remove expired SAS tokens and avoid persisted storage keys.
-6. Decide which migration resources should be retained or deleted.
-7. Estimate ongoing costs for Azure SQL, DMS, SHIR compute, storage, and private networking.
-8. Define backup, monitoring, and recovery requirements for the target.
-
-## Success criteria
-
-Students submit a post-migration security and operational checklist.
-
-Final student deliverable
-
-Students must submit a migration report containing:
-
-1. Executive summary
-2. Provided source environment
-3. Source assessment and compatibility findings
-4. Target architecture
-5. Private connectivity evidence
-6. DMS and SHIR configuration
-7. Initial migration result
-8. Error 2060 investigation
-9. Schema deployment workaround
-10. Data migration result
-11. Source-to-target reconciliation
-12. Application-readiness findings
-13. Security and operational review
-14. Lessons learned and recommendations
-
-Students must distinguish:
-
-* **Observation:** What was measured or logged
-* **Hypothesis:** A possible explanation
-* **Conclusion:** What the evidence supports
-* **Action:** What was changed
-* **Result:** What happened afterward
 
 Suggested class schedule
 
@@ -494,24 +302,8 @@ Suggested class schedule
 | Data migration | 12 | 30–60 minutes |
 | Validation and closeout | 13–15 | 60 minutes |
 
-Student submission checklist
 
-* [ ] Source database health and inventory
-* [ ] Compatibility assessment
-* [ ] Azure SQL target configuration
-* [ ] Private endpoint and DNS validation
-* [ ] Source and target permission tests
-* [ ] DMS and SHIR readiness evidence
-* [ ] Initial migration results
-* [ ] Error 2060 analysis
-* [ ] Schema deployment results
-* [ ] Data-only migration results
-* [ ] Source-to-target reconciliation
-* [ ] Application-readiness test
-* [ ] Security and operations review
-* [ ] Final migration report
-
-Instructor debrief questions
+### Instructor debrief questions
 
 1. Why must compatibility assessment occur before migration?
 2. What roles do Private Link and private DNS play?
