@@ -19,9 +19,16 @@ Pick whichever fits where you landed in Module 2:
 
 **Option B — start fresh from the sample.** [`sample-app/`](./sample-app/) in this folder is the Module 2 end state: the Caldova storefront already on .NET 10, still rendering through MVC, with nothing else modernized. You are working in your own fork, so you can use it where it sits:
 
-1. Open the `sample-app` folder in VS Code, so the agent works against that solution rather than the whole bootcamp.
-1. Open `src/eShopLite.StoreFx/appsettings.json` and replace `REPLACE_ME` in the `StoreDbContext` connection string with the SQL password from your instructor. Everything else in the connection string is already correct.
-1. Run the app and confirm the catalog loads before going further.
+1. Open the sample app in VS Code, so the agent works against that solution rather than the whole bootcamp. Module 2 left you in the legacy app folder, so run this from the root of your clone:
+
+   ```powershell
+   code labs\day-1\03-modernize-with-ghcp\sample-app
+   ```
+
+   You are in the right place when the Explorer shows `eShopLiteFx.sln` next to a `src` folder.
+
+2. Open `src/eShopLite.StoreFx/appsettings.json` and replace `REPLACE_ME` in the `StoreDbContext` connection string with the SQL password from your instructor. Everything else in the connection string is already correct.
+3. Run the app and confirm the catalog loads before going further.
 
 > 💡 Both options put you in the same place. Option B just skips re-running Module 2 if your upgrade did not finish or you want a known-good starting point.
 
@@ -29,8 +36,8 @@ Pick whichever fits where you landed in Module 2:
 
 Everything in this module runs through GitHub Copilot Chat. Confirm the agent is available before you start:
 
-1. Open the project folder in Visual Studio Code. You should already be in this view from the last module.
-1. Open the **GitHub Copilot Chat** view, send `@upgrade`, and confirm the agent responds (or select Upgrade agent from the dropdown).
+1. Open whichever folder you picked above in Visual Studio Code. With Option A you should already be in that view from the last module.
+2. Open the **GitHub Copilot Chat** view, send `@upgrade`, and confirm the agent responds (or select Upgrade agent from the dropdown).
 
 ![GitHub Copilot Agent Mode](./images/copilot-agent-mode.png)
 
@@ -106,30 +113,29 @@ So ask.
 
    ![Azure Readiness Prompt](./images/azure-ready.png)
 
-1. **Read the plan.** The plan file should come back in the chat. Select **Open in Editor** to view it as a markdown file. It is reading your actual codebase, so what comes back is grounded rather than generic — expect concrete gaps like no HTTPS redirection, no forwarded headers, no health endpoint, and `"AllowedHosts": "*"`.
+2. **Read the plan.** The plan file should come back in the chat. Select **Open in Editor** to view it as a markdown file. It is reading your actual codebase, so what comes back is grounded rather than generic — expect concrete gaps like no HTTPS redirection, no forwarded headers, no health endpoint, and `"AllowedHosts": "*"`.
 
-1. **Scope it before you run it.** Two things in the plan belong to later modules, so say so explicitly rather than letting the agent do them and undoing it afterwards:
+3. **Scope it before you run it.** Two things in the plan belong to later modules, so say so explicitly rather than letting the agent do them and undoing it afterwards:
 
    ```plaintext
    Proceed with the Azure readiness plan. Do not create a Dockerfile or touch the database -- these changes will come later. Create a new branch for the changes and please show a summary of changes after each phase.
 
-   Every Azure integration must be optional: read it from configuration, and when that configuration is absent, fall back to the existing local behavior so the app still builds and runs unchanged with no Azure resources provisioned. Do not
-   hardcode endpoints, keys or connection strings.
+   Keep every Azure integration optional: read it from configuration and fall back to current local behavior when that configuration is absent, so the app still builds and runs with no Azure resources. Don't hardcode endpoints, keys, or connection strings.
    ```
 
    The branch matters. It gives you one clean thing to diff, review, and throw away if the run goes sideways. The "must still run locally" constraint is your acceptance test. Readiness work that only functions once Azure resources exist can't be verified in this module, since we have not provisioned Azure resources yet. A broken local run is the fastest signal that the agent overreached. Every integration it adds should read its own configuration and fall back quietly when that configuration is absent, so the app you run at the end behaves exactly like the one you ran at the start.
 
-1. **Approve as it goes.** It will re-run the build and ask for approval to run commands. Grant them, and read the per-phase summaries as they appear instead of waiting until the end.
+4. **Approve as it goes.** It will re-run the build and ask for approval to run commands. Grant them, and read the per-phase summaries as they appear instead of waiting until the end.
 
-1. **Ask for a summary you can understand.** Once the upgrade completes, prompt Copilot for a high-level summary:
+5. **Ask for a summary you can understand.** Once the upgrade completes, prompt Copilot for a high-level summary:
 
    ```plaintext
    Summarize the changes you made at a high level, not file level.
    ```
 
-1. **Build and run it one more time.** The app should still look and behave exactly as it did before the run. If there are any build or unexpected errors, tell Copilot to check that it created fallbacks for local development. It may be hitting errors on Azure resources that do not exist yet. If sign-in, the cart, or anything else looks off, tell it in the chat and let it fix it before you move on. You can also ask Copilot to do this check:
+6. **Build and run it one more time.** The app should still look and behave exactly as it did before the run. If there are any build or unexpected errors, tell Copilot to check that it created fallbacks for local development. It may be hitting errors on Azure resources that do not exist yet. If sign-in, the cart, or anything else looks off, tell it in the chat and let it fix it before you move on. You can also ask Copilot to do this check:
 
-```plaintext
+   ```plaintext
    Verify the changes you made actually work. Run the app and check the behavior, don't just re-read the code. For anything you can't verify without Azure resources, say so explicitly rather than assuming it works.
    ```
 
