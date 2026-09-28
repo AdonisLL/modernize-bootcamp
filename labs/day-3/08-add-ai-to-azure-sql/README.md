@@ -1,6 +1,6 @@
-# 🧠 Lab 08: Add AI to Azure SQL
+# 🧠 Lab 08: Add AI
 
-> 🚧 **Placeholder.** This module is not written yet.
+Placeholder file.
 
 ---
 [← Previous: Modernize with the CLI](../07-modernize-with-cli/README.md)
