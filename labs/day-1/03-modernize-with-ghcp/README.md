@@ -17,13 +17,16 @@ Pick whichever fits where you landed in Module 2:
 
 **Option A — continue with your own code.** Your Module 2 output should already be running on .NET 10 and is ready for the work in this module. If that run did not finish cleanly, get the app building and running before you start — everything below assumes a working .NET 10 solution.
 
-**Option B — start fresh from the sample.** [`sample-app/`](./sample-app/) in this folder is the Module 2 end state: the Caldova storefront already on .NET 10, still rendering through MVC, with nothing else modernized. You are working in your own fork, so you can use it where it sits:
+**Option B — start fresh from the sample.** We have provided a sample of the Caldova storefront already on .NET 10, still rendering through MVC, with nothing else modernized. If you want to start fresh from a known good version, follow these steps:
 
-1. Open the sample app in VS Code, so the agent works against that solution rather than the whole bootcamp. Module 2 left you in the legacy app folder, so run this from the root of your clone:
+1. Open **PowerShell from your applications** — not the VS Code terminal, which is still rooted in the Module 2 app folder — and run:
 
    ```powershell
+   cd modernize-bootcamp
    code labs\day-1\03-modernize-with-ghcp\sample-app
    ```
+
+   If `code` is not recognized, start VS Code from your applications and use **File → Open Folder…**, then pick `modernize-bootcamp\labs\day-1\03-modernize-with-ghcp\sample-app`.
 
    You are in the right place when the Explorer shows `eShopLiteFx.sln` next to a `src` folder.
 
