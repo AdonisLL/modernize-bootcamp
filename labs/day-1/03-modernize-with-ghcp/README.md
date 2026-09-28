@@ -10,17 +10,6 @@ In this chapter you will work in **GitHub Copilot Chat** throughout — mostly r
 
 - 🚀 Convert the MVC pages to Blazor components
 - ☁️ Ask whether the app is Azure ready, and fix what comes back
-- 🤖 Optionally, ask the upgrade agent what modernization work is still relevant
-
-## 🔍 Prerequisites
-
-Before starting, ensure you have:
-
-- Visual Studio Code installed
-- The GitHub Copilot extension installed and signed in
-- A GitHub Copilot subscription, paid or free
-- The **GitHub Copilot upgrade** agent (`@upgrade`), installed in Module 2
-- A .NET 10 SDK available for the application
 
 ### Choose your starting point
 
@@ -28,9 +17,9 @@ Pick whichever fits where you landed in Module 2:
 
 **Option A — continue with your own code.** Your Module 2 output should already be running on .NET 10 and is ready for the work in this module. If that run did not finish cleanly, get the app building and running before you start — everything below assumes a working .NET 10 solution.
 
-**Option B — start fresh from the sample.** [`sample-app/`](./sample-app/) in this folder is the Module 2 end state: the Caldova storefront already on .NET 10, still rendering through MVC, with nothing else modernized. Copy it somewhere outside this repo and one setting needs changing:
+**Option B — start fresh from the sample.** [`sample-app/`](./sample-app/) in this folder is the Module 2 end state: the Caldova storefront already on .NET 10, still rendering through MVC, with nothing else modernized. You are working in your own fork, so you can use it where it sits:
 
-1. Copy the folder to your own working directory, then `git init` and commit a baseline.
+1. Open the `sample-app` folder in VS Code, so the agent works against that solution rather than the whole bootcamp.
 1. Open `src/eShopLite.StoreFx/appsettings.json` and replace `REPLACE_ME` in the `StoreDbContext` connection string with the SQL password from your instructor. Everything else in the connection string is already correct.
 1. Run the app and confirm the catalog loads before going further.
 
@@ -40,7 +29,7 @@ Pick whichever fits where you landed in Module 2:
 
 Everything in this module runs through GitHub Copilot Chat. Confirm the agent is available before you start:
 
-1. Open the project folder in Visual Studio Code.
+1. Open the project folder in Visual Studio Code. You should already be in this view from the last module.
 1. Open the **GitHub Copilot Chat** view, send `@upgrade`, and confirm the agent responds (or select Upgrade agent from the dropdown).
 
 ![GitHub Copilot Agent Mode](./images/copilot-agent-mode.png)
@@ -68,7 +57,7 @@ Leverage Blazor components to make it look more modern, sleek, and aesthetic.
 >
 > That last line is deliberately vague — "modern, sleek, and aesthetic" means whatever the model decides it means. Expect your result to look different from the screenshots below, and different from the person sitting next to you. That is fine. The point of this step is that you *can* modernize a UI by asking, not that everyone lands on the same UI.
 >
-> If you have something specific in mind, say so. Name the color palette, ask for product cards in a responsive grid, request a sticky nav bar, or paste in a screenshot of a design you like. The more specific the ask, the less the model has to invent.
+> If you have something specific in mind, say so. Name the color palette, ask for product cards in a responsive grid, or paste in a screenshot of a design you like. The more specific the ask, the less the model has to invent.
 >
 > The same applies when something breaks. If a page renders blank, a component goes missing, or routing misbehaves, describe that specific problem in the chat and let Copilot fix it before moving on.
 
@@ -86,8 +75,9 @@ This is our final page:
 
 ## 2️⃣ Build and test
 
-If Copilot does not automatically do this verification, then:
+If Copilot does not automatically do this verification, then prompt copilot to build and run the app:
 
+```plaintext
 1. Build the solution to ensure no compilation errors
 1. Run the application and verify all functionality
 1. Check that:
@@ -96,6 +86,7 @@ If Copilot does not automatically do this verification, then:
    - Sign-in still works and the cart still holds its contents — credentials are in [Demo logins](../../../docs/logins.md)
    - No MVC views or controllers are left behind in the routing
    - The application starts cleanly from the Visual Studio Code terminal
+```
 
 ![Modernized Application Running](./images/blazor-order.png)
 
@@ -103,7 +94,7 @@ If Copilot does not automatically do this verification, then:
 
 ## 3️⃣ Get the app cloud ready
 
-The app runs on .NET 10 and renders through Blazor, but it is not ready for the Azure components we plan to put around it — such as Key Vault and managed identity. Nothing so far has touched that, because a framework upgrade has no reason to.
+The app runs on .NET 10 and renders through Blazor, but it may not be ready for the Azure components we plan to put around it — such as Key Vault and managed identity. Nothing so far has touched that, because a framework upgrade has no reason to.
 
 So ask.
 
@@ -115,9 +106,7 @@ So ask.
 
    ![Azure Readiness Prompt](./images/azure-ready.png)
 
-1. **Read the plan.** Select **Open in Editor** to view it as a markdown file. It is reading your actual codebase, so what comes back is grounded rather than generic — expect concrete gaps like no HTTPS redirection, no forwarded headers, no health endpoint, and `"AllowedHosts": "*"`.
-
-   Read what it says is *already fine* too. Clean dependency injection, configuration through `IConfiguration`, no filesystem writes, no Windows-only APIs. Knowing what you do not have to touch is what keeps a migration small enough to review.
+1. **Read the plan.** The plan file should come back in the chat. Select **Open in Editor** to view it as a markdown file. It is reading your actual codebase, so what comes back is grounded rather than generic — expect concrete gaps like no HTTPS redirection, no forwarded headers, no health endpoint, and `"AllowedHosts": "*"`.
 
 1. **Scope it before you run it.** Two things in the plan belong to later modules, so say so explicitly rather than letting the agent do them and undoing it afterwards:
 
@@ -132,7 +121,7 @@ So ask.
 
 1. **Approve as it goes.** It will re-run the build and ask for approval to run commands. Grant them, and read the per-phase summaries as they appear instead of waiting until the end.
 
-1. **Ask for a summary you can understand.**
+1. **Ask for a summary you can understand.** Once the upgrade completes, prompt Copilot for a high-level summary:
 
    ```plaintext
    Summarize the changes you made at a high level, not file level.
@@ -176,8 +165,7 @@ By the end of this section, you should have:
 
 - 🔹 Converted the MVC pages to Blazor components
 - 🔹 Asked the agent directly whether the app is Azure ready
-- 🔹 Closed the gaps it found, including HTTPS redirection, forwarded headers, and a health endpoint
-- 🔹 Understood why in-process session state and local Data Protection keys break under scale-out
+- 🔹 Closed the cloud readiness gaps it found
 - 🔹 Kept the application buildable and its behavior unchanged throughout
 
 > **Next module preview:** Module 4 designs the Azure foundation this app now expects — networking, managed identity, and the container platform it will run on. You plan it and generate the Bicep for it; the live environment is already provisioned for you, so your implementation stays a local artifact to review rather than something you deploy. The app itself is deployed in Module 6.

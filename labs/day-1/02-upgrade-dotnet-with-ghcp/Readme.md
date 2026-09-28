@@ -1,14 +1,14 @@
 # 🚀 Upgrade with GitHub Copilot Modernization
 
-The Caldova Retail storefront runs on .NET Framework 4.8 — a platform that is out of active development, tied to Windows, and closed off from most modern Azure hosting. Before anything else can be modernized, it has to move onto current .NET.
+The Caldova Retail storefront runs on .NET Framework 4.8 — a platform that is out of active development and tied to Windows, which narrows the Azure hosting options open to it. Before anything else can be modernized, it has to move onto current .NET.
 
-In this module you'll use **GitHub Copilot Modernization** to make that move. Rather than working through breaking changes by hand, you'll direct an AI agent that assesses the codebase, produces a plan you can review and edit, and then executes it task by task — validating with a real build at each stage.
+In this module you'll use **GitHub Copilot Modernization** to make that move. Rather than working through breaking changes by hand, you'll direct an AI agent that assesses the codebase, produces a plan you can review and edit, and then executes it task by task.
 
 > 🧭 New to GitHub Copilot Chat? [Copilot Essentials](../../../docs/copilot-essentials.md) is a short reference on modes, models, context, cost, and course-correcting.
 
 ## 💼 Business case
 
-Caldova Retail's goal is not .NET 10 — it's an Azure PaaS service (App Service, Container Apps, or AKS), with Entra ID and Key Vault handling identity and secrets. None of that is open to a .NET Framework 4.8 app. It only runs on Windows Server, it can't be practically containerized, and pieces like Forms Authentication and `Web.config` have no modern equivalent to wire up. Lifting it to an Azure VM as-is would just move the same constraints into someone else's datacenter. The framework upgrade is what makes every other modernization option possible, which is why it comes first.
+Caldova Retail runs on .NET Framework 4.8, the last version of a platform that is no longer being developed. It still gets security fixes, but no new features and no performance work. The app has to move onto current .NET before anything else can be modernized, which is why this comes first.
 
 ## 📋 What You'll Do
 
@@ -19,65 +19,49 @@ Caldova Retail's goal is not .NET 10 — it's an Azure PaaS service (App Service
 
 > 💡 **SCOPE**
 >
-> This module changes the **framework only**. The database stays on SQL Server and the UI stays on MVC — the data tier and the front end are modernized in later modules. Keeping the scope tight is what makes the upgrade verifiable: if the app behaves the same afterwards, the framework change is sound.
+> This module changes the **framework only**. The database stays on SQL Server and the UI stays on MVC — the data tier and the frontend are modernized in later modules. Keeping the scope tight is what makes the upgrade verifiable: if the app behaves the same afterwards, the framework change is sound.
 
-## 🔍 Prerequisites
+## 🛠️ Setup
 
-Skillable will already have these installed for you, but for reference this is what is needed. The module is done entirely in **Visual Studio Code**:
+> The upgrade agent creates branches and git commits as it works, so run this module against **your own fork** rather than the workshop repository.
 
-| Requirement | Why you need it |
-| --- | --- |
-| [Visual Studio Code](https://code.visualstudio.com/) | The editor used for every step in this module |
-| [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) | The target framework for the upgrade |
-| [GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) and [GitHub Copilot Chat](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat) | Agent mode, which drives the upgrade |
-| [GitHub Copilot upgrade](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.upgrade-agent) (`ms-dotnettools.upgrade-agent`) | Adds the `@upgrade` agent that performs the modernization |
-
-Building and running the **original** .NET Framework 4.8 storefront, which you do at the start of the module, also needs:
-
-| Requirement | Why you need it |
-| --- | --- |
-| [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) | MSBuild with .NET Framework 4.8 targeting — the full IDE is not needed |
-| [IIS Express](https://learn.microsoft.com/en-us/iis/extensions/introduction-to-iis-express/iis-express-overview) 10.x | Hosts the legacy app locally. **Not** included with Build Tools — install it separately |
-| `nuget.exe` | Restores `packages.config` dependencies, which `dotnet restore` cannot handle |
-
-The [IIS Express extension for VS Code](https://marketplace.visualstudio.com/items?itemName=warren-buckley.iis-express) is optional but recommended — it starts and stops the server from the Command Palette instead of making you invoke `iisexpress.exe` by hand.
-
-> 💡 **TIP**
->
-> Confirm the SDK is visible to VS Code by opening the integrated terminal (`` Ctrl+` ``) and running `dotnet --list-sdks`. You should see a `10.x` entry.
-
-## 🚨 Important note
-
-> The upgrade agent creates branches and git commits as it works, so run this module against **your own copy** of the app rather than the workshop repository. From a terminal:
->
-> ```powershell
-> # Copy the storefront out of the workshop repo, excluding build output
-> robocopy <repo>\src\app-modernization\caldova-retail-web-app <your-folder> /E /XD bin obj .vs
->
-> cd <your-folder>
-> git init -b main
->
-> # The rule that normally hides this file lives outside the folder you just copied
-> "connectionStrings.config" | Set-Content .gitignore
->
-> git add -A
-> git commit -m "Baseline: Caldova retail storefront on .NET Framework 4.8"
-> ```
-
-## ▶️ Run the app before you change it
-
-First, give the app its database password. `Web.config` pulls the connection string from `connectionStrings.config`, which is kept out of the repository on purpose — so you get a template instead and fill it in yourself:
+**1. Fork and clone the repository.** Open PowerShell from your applications and run the command:
 
 ```powershell
-cd <your-folder>\src\eShopLite.StoreFx
-Copy-Item connectionStrings.config.example connectionStrings.config
+gh repo fork Azure-Samples/modernize-bootcamp --clone
+cd modernize-bootcamp
+```
+
+**2. Open the storefront folder in VS Code.** Run this command in PowerShell to open the application in VSCode:
+
+```powershell
+code src\app-modernization\caldova-retail-web-app
+```
+
+If `code` is not recognised, start VS Code from your applications and use **File → Open Folder…**, then pick `modernize-bootcamp\src\app-modernization\caldova-retail-web-app`.
+
+You are in the right place when the Explorer shows `eShopLiteFx.sln` next to a `src` folder, and nothing about labs or infra. Open a terminal inside VS Code from the top menu bar.
+
+![Open VS Code terminal](./images/open-vscode-terminal.png)
+
+**3. Give the app its database password.** The app pulls the connection string from `connectionStrings.config`, which is kept out of the repository on purpose so passwords are not accidentally committed. From your newly opened terminal, copy this template and fill it in yourself:
+
+```powershell
+Copy-Item src\eShopLite.StoreFx\connectionStrings.config.example `
+          src\eShopLite.StoreFx\connectionStrings.config
 ```
 
 Open the new file and replace `REPLACE_ME` with the SQL password from your instructor. Leave the server, database, and user exactly as they are.
 
-Do not skip this. `Web.config` references the file with `configSource`, so a missing `connectionStrings.config` is a configuration error at startup — the app will not serve a single page, and the error will not obviously point at the password.
+## ▶️ Run the App
 
-Now ask Copilot Chat to build and launch the legacy app for you:
+To make sure the setup was completed correctly, ask Copilot Chat to build and launch the legacy app for you.
+
+Open Copilot Chat by selecting the chat icon in the top menu bar, to the right of the search bar:
+
+![Open chat](./images/open-chat.png)
+
+Then, type in the chatbox and submit this prompt:
 
 ```plaintext
 This is a .NET Framework 4.8 ASP.NET MVC app using packages.config. Restore its packages with nuget.exe, build the solution with MSBuild, and launch it locally with IIS Express. Tell me the URL when it is running.
@@ -103,7 +87,7 @@ GitHub Copilot Modernization works through a three-stage workflow: **Assessment 
 
 We're going to upgrade our application to achieve one goal: **move the storefront from .NET Framework 4.8 to .NET 10**, with its existing behavior intact.
 
-## 🔎 Optional: run an application assessment first
+## Run the GHCP Modernization Application Assessment
 
 Module 1 assessed the **infrastructure** with Azure Migrate — servers, sizing, and dependencies. The modernization extension assesses the **application code**, which is the other half of the picture. Azure Migrate can tell you a server is ready to move; the application assessment tells you whether the code should move as-is or be upgraded first.
 
