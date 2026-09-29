@@ -1,4 +1,8 @@
-# Connect Azure SQL Managed Instance to Microsoft Foundry
+# 🧠 Lab 08: AI-Powered Database in Azure
+
+Now that the database is migrated to Azure, let us use the power of AI for some easy applications out of the database. In this exercise, you will connect Azure AI to the SQL Managed Instance and create an advertisement for one of the product using AI.
+
+## Connect Azure SQL Managed Instance to Microsoft Foundry
 
 This guide discovers an existing Azure SQL Managed Instance and connects it to a model deployed in Microsoft Foundry (formerly Azure AI Foundry). The SQL managed instance uses its existing system-assigned managed identity, so no API key is stored in SQL.
 
@@ -511,3 +515,6 @@ Imagine your next weekend escape: the smell of pine, the sound of a crackling fi
 - [Deploy Foundry models with Azure CLI](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/create-model-deployments)
 - [Azure OpenAI-compatible v1 API](https://learn.microsoft.com/azure/foundry/openai/api-version-lifecycle)
 - [Azure CLI: `az cognitiveservices account deployment`](https://learn.microsoft.com/cli/azure/cognitiveservices/account/deployment)
+
+---
+[← Previous: Modernize with the CLI](../07-modernize-with-cli/README.md)
