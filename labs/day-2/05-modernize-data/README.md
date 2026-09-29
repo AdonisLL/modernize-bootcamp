@@ -75,11 +75,16 @@ DBCC CHECKDB (N'eShop') ;
 
 ## Challenge 2 — Pre-migration assessment of the source database 
 
+SSMS 22 is the latest version of Microsoft’s SQL Server Management Studio, a 64-bit graphical tool for managing, developing, and administering SQL Server and Azure databases. We will use it in the lab to perform the database assessment, querying and performing the necessary backups to upload to Azure storage for the migration. To launch the tool, locate on the labs desktop the shortcut:
+
+ ![SSMS](./images/ssms_22.png)
 ## Student tasks
 
 1. Using SSMS, right click on the server and choose "Migrate SQL Server"
-2. <u>Do not Migrate or Upgrade the database</u>. Run a "Migration rediness assessment".
-3. Investigate the report. Find out compatibility issues with different SQL targets [![Assessment](./images/Challenge_2_assessment_report.png)](./images/Challenge_2_assessment_report.png)
+ ![SSMS](./images/Challenge_2_assessment_launch_1.png)
+2. <u>Do not Migrate or Upgrade the database</u>. Run a "Migration rediness assessment". An html file will open in your browser once the assessment completes. This is the report.
+ ![SSMS](./images/Challenge_2_assessment_launch_2.png)
+3. Investigate the report. Find out compatibility issues with different SQL targets ![Assessment](./images/Challenge_2_assessment_full_report.png)
 
 
 ## Success criteria
@@ -87,141 +92,196 @@ DBCC CHECKDB (N'eShop') ;
 * You learn different options of running SQL on Azure
 * Understand the assessment report and the comptatibility issues.
 
-## Challenge 3 — Create a database migration service for migration
+## Challenge 3 — Create the required azure resources
+
+Azure SQL Managed Instance, the target database service, is already provisionned on your lab subscription to save time. You will need to validate that *System Assigned Managed Identity* is enabled for the server.  
+
+In this part of the lab you will create the necesary Azure resources to perform the migration. Deploy the resources in the same region that Azure SQL MI is deployed.  You will:
+
+- Create a resource provider (if it does not exist) in the subscription for DMS.
+- Deploy an Azure storage account and a blob container to store database and transaction log file backups.
+- Deploy an Azure Database Migration Service (DMS) to migrate the database.
+
 
 ## Student tasks
 
-1. In the same region where you will deploy Azure SQL as a migration target, deploy Azure Data Migration Services (DMS)
-2. After the DMS is installed, deploy and configure a self-hosted Integration Runtime on the source database server. Go to Settings --> Integration runtime on the portal and follow the instructions. See here [![here](./images/Challenge_3_DMS_SHIR_instructions.png)](./images/Challenge_3_DMS_SHIR_instructions.png)
-3. Verify that the "SHIR" shows as online on DMS in Azure portal. 
-4. <u>Note:</u> only the public IP of the SHIR nodes show up on DMS
+### 1. Resource provider
+
+From the Azure portal, go to *Subscriptions*.  Clicck on *Ressource Providers* and confirm that *Microsoft.DataMigration* is registered.  If it is not, then register it.
+
+![ResourceProvider](./images/dms_resource_provider.png)
+
+### 2. Azure SQL MI System Assigned Managed Identity
+
+Locate the pre-deployed Azure SQL Managed instance in your lab subscription. Go to the *Identity* blade and confirm that *System Assigned Managed Identity* is enabled.  If it is not then enable it.
+
+![SQLMI_SAMI](./images/SQLMI_SAMI.png)
+
+### 3. Storage Account
+
+Provision an Azure Storage Account and create a Blob container. 
+
+![Storage1](./images/Storage_1.png)
+![Storage2](./images/Storage_2.png)
+![Storage3](./images/Storage_3.png)
+![Storage4](./images/Storage_4.png)
+
+Once the storage account is created you need to grant to your current Azure user the permission to view and list Blob containers.  Do this via IAM.  Assign the *Storage Blob Data Owner* role.
+
+![Storage5](./images/Storage_5.png)
+![Storage6](./images/Storage_6.png)
+![Storage7](./images/Storage_7.png)
+![Storage8](./images/Storage_8.png)
+
+You will also need to grant the Azure SQL MI, System Managed Identity the blob reader permission. The identity has the same name as the SQL MI instance your lab subscription.
+
+![Storage9](./images/Storage_9.png)
+![Storage10](./images/Storage_10.png)
+
+Create a Blob container in the storage account and a folder within the container.
+
+![Storage11](./images/Storage_11.png)
+![Storage12](./images/Storage_12.png)
+
+### 4. Database Migration Service (DMS)
+
+In the same region where Azure SQL MI is deployed in the lab subscription, deploy Azure Data Migration Services (DMS).
+
+![DMS1](./images/DMS_1.png)
+![DMS2](./images/DMS_2.png)
+![DMS3](./images/DMS_3.png)
+![DMS4](./images/DMS_4.png)
+
+
 
 ## Success criteria
 
-- DMS is employed with SHIR shown as online
+- Resource provider is registered for data migrations
+- SQL MI configured for System Assigned Managed Identity
+- Storage account is created with a Blob container
+- DMS is deployed 
 
-### Extra Challenge 
-
-- Can you have multuple SHIR using the same DMS service ?
 
 ## Challenge 4 — Online Migraton to SQL Managed Instance
 
-Complete this challenge only when Lab 04 was provisioned with
-`LAB04_DATABASE_MODE=sqlMi`. The managed instance and empty `eShop` database
-already exist; do not deploy an additional managed instance.
+In this challenge you will perform database backups to the Azure Storage account provisioned earlier.  You will then use DMS to perform an *Online* migration. To perform and online migration, DMS restores backups then takes advantage of the *Log Replay Service* (LRS) to replay transaction logs and complete the migration. 
 
 ## Student tasks
 
-1. Create a SQL Managed instance - in an empty sublet of a Vnet. It should have authentication using entra and SQL enabled, note down the SQL admin credentials.
+### 1. Backup the database to Azure Storage using SSMS 22
 
-2. Connect to the SQL MI using SSMS using entra. Note: if using MCAPS subscription it will only allow an authentication using entra-login only. 
+Launch SSMS from the desktop:
 
-<u>Note: </u> Your SQL MI may have a scheduled "start/stop" time. Make sure to have it started everyday before your work begins.
+ ![SSMS22](./images/ssms_22.png)
 
-3. DMS needs a backup of the source database to migrate - to Azure blob or file share. To backup to blob, follow these steps
+Connect to the source database that resides in the VM. Expand the tree and Database folder and locate the *eShop* database. Right click and select Tasks->Backup.
 
-   - Verify if the database is in full recovery mode as you changed in challenge #1.
+![SSMS22_1](./images/SSMS22_1.png)
 
-   ```sql
-   SELECT
-      name, recovery_model_desc 
-   FROM sys.databases ;
-   ```
+Select *Full* for backup type and *URL* for *Back up to*. Click on *Add* to select the Azure Storage account and Blob container.
 
-   - Create a storage account in the same region where you have DMS and MI. Create a container in it.
+![SSMS22_2](./images/SSMS22_2.png)
 
-   - Ensure that the on-prem source server can connect to the storage account
+Click on *New Container*
 
-   - Create a SAS token for the storage account
+![SSMS22_3](./images/SSMS22_3.png)
 
-   - On the source SQL database, create a credential and verify it.
+Login to the lab's subscription and select the storage account and container created earlier. Generate SAS credentials and save them in notepad. Click OK.
 
-   ```sql
-   CREATE credential [https://<stroage-account>.blob.core.windows.net/<container>>] WITH IDENTITY='SHARED ACCESS SIGNATURE', SECRET = '<sas_token>' ;
+![SSMS22_4](./images/SSMS22_4.png)
 
-   SELECT * from sys.credentials ;
-   ```
+Make sure to prefix the *Backup File* with the directory name *backups/* of the Blob container that was created earlier. Otherwise the backup file will be created in the root of the container. Click OK.
 
-   - Execute a full backup to this storage account in SSMS
+![SSMS22_5](./images/SSMS22_5.png)
 
-   ```sql
-   backup database eshop to URL = 'https://<stroage-account>.blob.core.windows.net/<container>/<backup-file-name' ;
-   ```
+Repeat the task this time taking a differential backup.
 
-4. <b> [Optional] </b> If your source VM is in Azure, it helps to have the "SqlIaasExtension" extension installed
+![SSMS22_6](./images/SSMS22_6.png)
 
-```shell
-az vm extension list -g <vm-resource-group> --vm-name <vm-name> -o table
-```
+The backups should be listed in the Blob container in the storage account.
 
-5. SQL MI should be able to read the backup to restore the backup of the source database from the storage account. To enable that, assign "storage blob data reader" role to the managed identity of your SQL MI
+![SSMS22_7](./images/SSMS22_7.png)
 
-   5a. First Find out the system assigned managed identity of the SQL Managed instance
+### 2. Migrate the database online using DMS
 
-   Enter the name of the resource group that contains the SQL managed instance:
+Navigate to the Azure portal to the DMS service created earlier.  Select Migrate database.
 
-```powershell
-$resourceGroup = Read-Host "Enter the SQL managed instance resource group"
-```
+![DMS_5](./images/DMS_5.png)
 
-Get the SQL managed instance and its identity from that resource group. This guide expects the resource group to contain exactly one SQL managed instance in a resource group:
+Select *New Migration*
 
-```powershell
-$managedInstanceDetails = @(
-    az sql mi list `
-        -g $resourceGroup `
-        --query "[].{SQLMI:name, IdentityType:identity.type, ManagedIdentity:identity.principalId}" `
-        --output json |
-        ConvertFrom-Json
-)
+![DMS_6](./images/DMS_6.png)
 
-if ($managedInstanceDetails.Count -ne 1)
-{
-    throw "Expected exactly one SQL managed instance in resource group '$resourceGroup', but found $($managedInstanceDetails.Count)."
-}
+Select *Blob Storage* as the location of the backup files and *Online* as the migration mode.
 
-$managedInstanceDetails | Format-Table -AutoSize
-$managedInstance = $managedInstanceDetails[0].SQLMI
-```
+![DMS_7](./images/DMS_7.png)
 
-Next find out the managed identity for the MI instance
+Configure details as shown. For the Instance details, the details referenced are not those of the source server, rather the *Migration Project* we are configuring. 
 
-```powershell
-$miPrincipalId = az sql mi show `
-    -g $resourceGroup `
-    -n $managedInstance `
-    --query identity.principalId `
-    --output tsv
-```
+![DMS_8](./images/DMS_8.png)
 
-Finally, assign this managed identity "storage blob data reader" role for the storage account where you have your database backup kept.
+Select the Azure SQL managed Instance that already exists as a target.
 
-```powershell
-az role assignment create `
-    --assignee-object-id $miPrincipalId `
-    --assignee-principal-type ServicePrincipal `
-    --role "Storage Blob Data Reader" `
-    --scope $(az storage account show `
-        --name <backup-storage-account> `
-        --resource-group <backup-storage-account-rg> `
-        --query id --output tsv)
-```
+![DMS_9](./images/DMS_9.png)
 
-6. Now you are ready to start the migration. On azure portal for DMS, Click on new migration. Choose blob as the backup storage location and online as the migration mode. 
+Specify the location of the backup files in the Azure storage account as well as the target database name you eShop.
 
-7a. When it asks if "your SQL server instance is tracked in azure" - you can say yes <b>only if</b> the source VM is in azure with SQL extension installed, or is outside Azure and is SQL Arc enabled. If you click yes it should automatically find your SQL server based on your resoure group and location.
+![DMS_10](./images/DMS_10.png)
 
-7b. If you say no, then choose what is your source VM and specify a logical SQL server ( not your MI) where DMS can create a small SQL database to track migration progress for restartability.
+Start the migration.
 
-8. Next, choose your SQL MI as the target. 
+![DMS_11](./images/DMS_11.png)
 
-9. Now DMS will need to see the location of the backup you took earlier. Remember that DMS, the target SQL MI and the storage account - all need to be in the same Azure region. Also note that the database backup can be at the root folder or one folder under root in the container - not below that. The target database should not exist already - DMS restore creates the database from its physical backup
+Follow the migration progress.
 
-10. Once the migration is complete, the migration goes to "ready to cutover" stage. Complete the migration
+![DMS_12](./images/DMS_12.png)
 
-11. Connnect to the eshop database on SQL MI. 
+If all is well, both the full and differential backups have been restored.
 
-12. Change the application connectivity to switch to SQL MI.
+![DMS_13](./images/DMS_13.png)
+
+The work is not done yet.  Since this is an online migration, transaction logs need to be replayed.  The LRS can only be triggered via Azure CLI or PowerShell. The *datamigration* extension needs to be installed on the VM.
+
+*az extension add --name datamigration --upgrade*
+
+Once that is done, as a test to prove that transactions logs completed successfully and no data loss occured, go to the source database and add a new row to a table. Use SSMS 22 to launch a query window and run the command.
+
+![DMS_14](./images/DMS_14.png)
+
+Next we need to backup the transaction logs to the storage account, in the same folder/location as the database backups.  Use SSMS to do this as well. Opt for *Transactions Logs* as the back up type.
+
+![DMS_15](./images/DMS_15.png)
+
+From command line login to azure:
+
+*az login*
+
+Start the log replay service in continuous mode  by issuing the following command making sure to replace the place holders with your lab's Azure environment information.  If you don't have the SAS for the Storage account from the earlier steps, generate a new one.
+
+az sql midb log-replay start -g mygroup --mi myinstance -n mymanageddb --storage-uri "https://*my storage accountname*.blob.core.windows.net/*container name*/*database backup folder*" --storage-sas "*SAS token for the container*"
+
+Command should look like this:
+
+![DMS_16](./images/DMS_16.png)
+
+You can follow the progress of the log replay from the portal, same place as where the progress of the migration was being followed.
+
+![DMS_122](./images/DMS_12.png)
+
+The transaction logs have all been played when there are no files leeft to restore.
+
+![DMS_17](./images/DMS_17.png)
+
+Perform the cutover. Wait for it to complete.
+
+![DMS_18](./images/DMS_18.png)
+
+Navigate to the Azure SQL Managed instance and confirm the database is there and in good state. Click on *DAtabases* in the left to list all databases on this managed instance.
+
+![DMS_19](./images/DMS_19.png)
+
+Go back to SSMS 22.  Connect to the Azure SQL Managed Instance and eShop database using Entra. Explore the tables and make sure they are all there.  Confirm the row you added above is also present. 
+
 #### Congratulations - you have migrated to Azure SQL
 
 ## Challenge 5  — Enable private endpoint for SQL Managed Instance
@@ -319,4 +379,4 @@ Suggested class schedule
 
 ---
 
-[← Previous: Deploy the Azure Foundation](../../day-1/04-deploy-to-azure/README.md) | [Next: Deploy Code with GitHub Actions →](../06-deploy-code-with-github-actions/README.md)
+[← Previous: Deploy the Azure Foundation](../04-deploy-to-azure/README.md) | [Next: Deploy Code with GitHub Actions →](../06-deploy-code-with-github-actions/README.md)
