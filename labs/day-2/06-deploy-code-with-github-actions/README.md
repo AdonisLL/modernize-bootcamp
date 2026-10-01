@@ -1,6 +1,6 @@
 # 🚀 Lab 06: Deploy Code with GitHub Actions
 
-Lab 04 examined the design of a secure Azure platform, and the instructor-preprovisioned environment supplies that platform for this lab. Lab 05 migrated the `eShop` database, and the Container App still runs a placeholder image. In this challenge, you will create a CI/CD workflow that validates the modernized retail application, builds a container, pushes an immutable image to the existing Azure Container Registry, and releases a new Azure Container Apps revision.
+Lab 04 examined the design of a secure Azure platform, and the instructor-preprovisioned environment supplies that platform for this lab. Lab 05 migrated the `eshop` database, and the Container App still runs a placeholder image. In this challenge, you will create a CI/CD workflow that validates the modernized retail application, builds a container, pushes an immutable image to the existing Azure Container Registry, and releases a new Azure Container Apps revision.
 
 This lab takes approximately **60-75 minutes**.
 
@@ -142,10 +142,11 @@ code-deployment identities**. Do not reuse the infrastructure identity.
 | Principal | Role | Scope | Purpose |
 | --- | --- | --- | --- |
 | Lab 06 build identity (`lab06`) | `AcrPush` | ACR | Push and inspect image manifests |
-| Lab 06 deployment identity (`lab06-deploy`) | `Container Apps Contributor` | Retail Container App | Create a revision by updating the image and configuration |
+| Lab 06 deployment identity (`lab06-deploy`) | `Container Apps Contributor` | Retail Container App | Create a revision by updating only the image |
 | Lab 06 deployment identity (`lab06-deploy`) | `Reader` | Front Door profile | Resolve the existing endpoint for the post-deployment smoke test |
-| Retail Container App identity | `AcrPull` | ACR | Pull the released image at runtime |
-| Retail Container App identity | Contained database user | `eShop` database | Read and write application data without a password |
+| Retail Container App system identity | `AcrPull` | ACR | Pull the released image at runtime |
+| Retail user-assigned runtime identity | `Key Vault Secrets User` | Lab Key Vault | Resolve future Key Vault-backed ACA secret references |
+| Retail user-assigned runtime identity | Contained database user | `eshop` database | Read and write migrated application data without a password |
 
 The workflow receives a short-lived Azure token only after GitHub presents an OIDC token whose repository and environment claims match the federated credential. No Azure client secret or ACR password is stored in GitHub.
 
@@ -157,6 +158,7 @@ deployment outputs:
 | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | OIDC sign-in context; `AZURE_CLIENT_ID` identifies the build identity in `lab06` and the deployment identity in `lab06-deploy` |
 | `LAB06_CONTAINER_REGISTRY_NAME` | Existing Lab 04 registry |
 | `LAB06_CONTAINER_APP_NAME` | Existing retail Container App |
+| `LAB06_RUNTIME_IDENTITY_RESOURCE_ID`, `LAB06_RUNTIME_IDENTITY_CLIENT_ID` | Bicep-owned runtime identity verification; neither value is a credential |
 | `LAB04_PRIMARY_RESOURCE_GROUP`, `LAB04_SECONDARY_RESOURCE_GROUP` | Registry, SQL, and application lookup scopes |
 | `LAB04_GLOBAL_RESOURCE_GROUP`, `LAB04_PREFIX`, `LAB04_SUFFIX` | Existing Front Door endpoint lookup |
 
@@ -199,7 +201,12 @@ Check the result against the contract before you build it:
 - port `8080` for platform ingress, and `/health` for pipeline and release probes
 - a build context that excludes source-control metadata, build output, and local secret files
 
-> 💡 The credentials question is the interesting one. The app needs a database connection at runtime, but the image must not contain it. Lab 04 gave the Container App a managed identity and a contained database user, so the connection string arrives as an environment variable and the identity supplies the authentication. If Copilot bakes a connection string into the image, that is the failure to catch here.
+> 💡 The credentials question is the interesting one. The app needs a database
+> connection at runtime, but the image must not contain it. Lab 04 Bicep owns
+> the passwordless connection-string environment variable and runtime identity;
+> Lab 05 grants that identity access after migrating `eshop`. GitHub Actions
+> changes only the image. If Copilot bakes configuration into the image or
+> rewrites environment variables during release, that is the failure to catch.
 
 Build the application before building its image:
 
@@ -246,9 +253,9 @@ Requirements:
   manifest digest, and deploy registry/repository@digest.
 - Use the dedicated Lab 06 identity and the protected lab06-deploy environment.
 - Update only the existing retail Container App. Do not deploy or modify infrastructure.
-- Configure ACR pull through the Container App system identity.
-- Set ConnectionStrings__StoreDbContext to a passwordless Azure SQL connection string
-  using Authentication=Active Directory Managed Identity.
+- Verify ACR pull uses the Container App system identity.
+- Verify Bicep already configured `ConnectionStrings__StoreDbContext`,
+  `AZURE_CLIENT_ID`, and `ASPNETCORE_ENVIRONMENT`; do not set or replace them.
 - Preserve the existing replica and autoscale settings.
 - Wait for the new revision to become healthy and smoke test through Front Door.
 - Add concurrency so an older deployment cannot overtake a newer commit.
@@ -328,19 +335,22 @@ Use a separate job with the protected `lab06-deploy` environment. It must:
 
 1. authenticate through the `lab06-deploy` federated credential
 2. verify the target app and registry match Lab 04
-3. configure the app's system identity for ACR pull
+3. verify the system identity, user-assigned runtime identity, and required
+   Bicep-owned environment-variable names
 4. update the image by digest
-5. set the passwordless Azure SQL connection string
+5. preserve the existing environment variables, secrets, replica count, and
+   autoscale configuration
 6. wait for the new revision to report healthy
 7. test the public Front Door endpoint
 
-The passwordless connection string has this shape:
+The Bicep-owned passwordless connection string has this shape:
 
 ```text
-Server=tcp:<server>.database.windows.net,1433;Initial Catalog=eShop;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+Server=tcp:<server>,1433;Initial Catalog=eshop;User Id=<runtime-identity-client-id>;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
 ```
 
 It identifies endpoints and authentication mode but contains no credential.
+The separately imported `eshop_ai` database belongs to a later AI lab.
 
 ## Challenge 6: Review and Run
 

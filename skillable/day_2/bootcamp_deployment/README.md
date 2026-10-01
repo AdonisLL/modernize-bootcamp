@@ -120,6 +120,8 @@ updates.
 - PowerShell 7 or later
 - Azure CLI
 - Azure Developer CLI for the AZD path
+- .NET SDK 8 or later for the automatic SqlPackage bootstrap
+- outbound HTTPS access to `https://api.nuget.org` on the first database import
 - an Azure subscription where you can create subscription deployments,
   resource groups, role assignments, and a custom role
 - Microsoft Graph access to resolve the signed-in Entra user or an explicitly
@@ -151,6 +153,50 @@ The pre-provision hook:
 4. defaults to SQL Managed Instance with the Freemium pricing model
 5. accepts `LAB04_SQL_MI_PRICING_MODEL=Regular` when the instructor determines
    that the subscription or region cannot use Freemium
+
+After Bicep succeeds, the post-provision hook imports the repository-level
+`data\eshop.bacpac` as `eshop_ai`. It uses the signed-in Entra administrator,
+automatically obtains the deployer's public IPv4 address from
+`api.ipify.org`, and grants only that `/32` temporary access. For Azure SQL it
+temporarily enables the public endpoint and adds a server firewall rule. For
+SQL MI it adds a temporary TCP 3342 NSG rule. The hook removes its rule and
+restores Azure SQL's original public-network setting even when import fails.
+
+The hook automatically installs pinned Microsoft.SqlPackage `170.5.96` into
+the ignored project-local
+`.azure\tools\sqlpackage\170.5.96` directory. It supplies nuget.org explicitly,
+so it does not modify or depend on the user's persistent NuGet sources. The
+verified cache is reused on later deployments and no global tool is installed.
+Windows, Linux, and macOS deployment machines are supported through
+PowerShell 7 and the .NET SDK.
+
+Rerunning `azd up` preserves an existing `eshop_ai` database and skips the
+import before making any network change. The deployment never drops or
+replaces an existing database.
+
+### Container App configuration
+
+Azure Container Apps uses revision-scoped environment variables as the
+equivalent of App Service App Settings. Bicep owns the retail app's stable
+runtime configuration:
+
+- `ASPNETCORE_ENVIRONMENT=Production`
+- `AZURE_CLIENT_ID` selects the dedicated user-assigned runtime identity.
+- `ConnectionStrings__StoreDbContext` is a passwordless managed-identity
+  connection string for the separate `eshop` database created later by the
+  migration lab.
+
+The BACPAC-created `eshop_ai` database remains independent and is not used by
+the retail app. After migration creates `eshop`, Lab 05 grants the runtime
+identity only `db_datareader` and `db_datawriter` inside that database.
+
+Future sensitive settings should be stored in Key Vault and declared as ACA
+Key Vault secret references. The runtime identity has **Key Vault Secrets
+User** on the lab vault; literal secret values must not be passed through
+Bicep, AZD, GitHub variables, image build arguments, or container layers.
+Changing environment variables creates a new ACA revision. Updating an
+app-scoped secret alone does not restart an existing revision, so secret
+rotation also requires a revision restart or new revision.
 
 ### Manage deployment locations
 
@@ -286,7 +332,9 @@ $subscriptionId = '<subscription-id>'
 
 `Deploy` uses `--confirm-with-what-if`, approves only the deterministic Front
 Door Private Link request, and waits for the public Front Door endpoint to
-respond successfully.
+respond successfully. It then runs the same idempotent BACPAC import as the
+AZD post-provision hook. `Validate` and `WhatIf` do not install SqlPackage,
+discover a public IP, or change SQL networking.
 
 `DeploymentLocation` controls the subscription deployment record.
 `PrimaryLocation`, `SecondaryLocation`, and `ApplicationLocation` control the
@@ -387,6 +435,9 @@ This is a training deployment, not a complete production landing zone.
   admin account is disabled and access uses scoped RBAC.
 - SQL MI public TCP 3342 remains blocked until a participant script adds one
   validated public IPv4 `/32` rule to the NSG.
+- Database initialization briefly adds one deployment-scoped `/32` rule and
+  removes it after SqlPackage finishes. Azure SQL public access is restored to
+  disabled.
 - The lab does not provide enterprise hub-spoke networking, Firewall,
   DDoS Network Protection, centralized Private DNS, policy assignments, SIEM
   integration, or full multi-region disaster recovery.
@@ -412,6 +463,13 @@ Validate the GitHub OIDC, workflow, PowerShell, and Bicep parameter contracts:
 
 ```powershell
 .\tests\Validate-Lab04OidcContracts.ps1
+```
+
+Validate BACPAC import naming, module, hook, path, and temporary-rule
+contracts without changing Azure resources:
+
+```powershell
+.\tests\Validate-Lab04DatabaseImportContracts.ps1
 ```
 
 Validate SQL MI public endpoint parsing and DNS/TCP readiness behavior without

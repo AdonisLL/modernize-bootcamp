@@ -51,7 +51,6 @@ module managedInstance './modules/sql-managed-instance.bicep' = {
     name: toLower('${nameToken}mi${suffix}')
     location: location
     subnetId: managedInstanceSubnet.id
-    databaseName: 'eShop'
     entraAdminObjectId: sqlEntraAdminObjectId
     entraAdminLogin: sqlEntraAdminLogin
     entraAdminPrincipalType: sqlEntraAdminPrincipalType
@@ -63,4 +62,4 @@ module managedInstance './modules/sql-managed-instance.bicep' = {
 output managedInstanceName string = managedInstance.outputs.name
 output managedInstanceFqdn string = managedInstance.outputs.fullyQualifiedDomainName
 output managedInstancePublicEndpoint string = managedInstance.outputs.publicEndpoint
-output managedDatabaseName string = managedInstance.outputs.databaseName
+output managedDatabaseName string = 'eshop_ai'

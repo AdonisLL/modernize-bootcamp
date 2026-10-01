@@ -36,6 +36,7 @@ param vmAdminUsername string
 param vmAdminPassword string
 
 var suffix = take(uniqueString(subscription().id, environmentName, prefix), 8)
+var databaseName = 'eshop_ai'
 var resourceGroups = {
   bootstrap: 'rg-${prefix}-bootstrap-${suffix}'
   primary: 'rg-${prefix}-primary-${suffix}'
@@ -116,12 +117,16 @@ module secondary './lab04/complete/secondary.bicep' = {
     sqlMiPricingModel: sqlMiPricingModel
     codeDeploymentPrincipalId: bootstrap.outputs.codeDeploymentPrincipalId
     containerRegistryName: primary.outputs.containerRegistryName
+    containerRegistryLoginServer: primary.outputs.containerRegistryLoginServer
     containerRegistryResourceGroupName: primaryResourceGroup.name
     privateDnsZoneResourceGroupName: primaryResourceGroup.name
     privateDnsZoneName: primary.outputs.privateDnsZoneName
     primaryDatabaseResourceGroupName: primaryResourceGroup.name
     primaryDatabaseVnetName: primary.outputs.databaseVnetName
     primaryDatabaseVnetId: primary.outputs.databaseVnetId
+    primaryDatabaseFqdn: primary.outputs.databaseFqdn
+    runtimeIdentityResourceId: bootstrap.outputs.runtimeIdentityId
+    runtimeIdentityClientId: bootstrap.outputs.runtimeIdentityClientId
     sqlEntraAdminObjectId: sqlEntraAdminObjectId
     sqlEntraAdminLogin: sqlEntraAdminLogin
     tags: tags
@@ -162,10 +167,16 @@ output LAB04_DATABASE_FQDN string = databaseMode == 'azureSql'
 output LAB04_SQL_MI_PUBLIC_ENDPOINT string = databaseMode == 'sqlMi'
   ? secondary.outputs.sqlMiPublicEndpoint
   : ''
-output LAB04_DATABASE_NAME string = 'eShop'
+output LAB04_DATABASE_NAME string = databaseName
 output LAB04_DATABASE_RESOURCE_GROUP string = databaseMode == 'azureSql'
   ? primaryResourceGroup.name
   : secondaryResourceGroup.name
+output LAB04_DATABASE_SERVER_NAME string = databaseMode == 'azureSql'
+  ? primary.outputs.sqlServerName
+  : secondary.outputs.managedInstanceName
+output LAB04_SQL_MI_NSG_NAME string = databaseMode == 'sqlMi'
+  ? secondary.outputs.sqlMiNetworkSecurityGroupName
+  : ''
 output LAB04_KEY_VAULT_NAME string = bootstrap.outputs.keyVaultName
 output LAB06_BUILD_AZURE_CLIENT_ID string = bootstrap.outputs.codeBuildClientId
 output LAB06_BUILD_AZURE_PRINCIPAL_ID string = bootstrap.outputs.codeBuildPrincipalId
@@ -173,8 +184,13 @@ output LAB06_BUILD_IDENTITY_NAME string = bootstrap.outputs.codeBuildIdentityNam
 output LAB06_DEPLOY_AZURE_CLIENT_ID string = bootstrap.outputs.codeDeploymentClientId
 output LAB06_DEPLOY_AZURE_PRINCIPAL_ID string = bootstrap.outputs.codeDeploymentPrincipalId
 output LAB06_DEPLOYMENT_IDENTITY_NAME string = bootstrap.outputs.codeDeploymentIdentityName
+output LAB06_RUNTIME_IDENTITY_NAME string = bootstrap.outputs.runtimeIdentityName
+output LAB06_RUNTIME_IDENTITY_RESOURCE_ID string = bootstrap.outputs.runtimeIdentityId
+output LAB06_RUNTIME_IDENTITY_CLIENT_ID string = bootstrap.outputs.runtimeIdentityClientId
+output LAB06_RUNTIME_IDENTITY_PRINCIPAL_ID string = bootstrap.outputs.runtimeIdentityPrincipalId
 output LAB06_CONTAINER_REGISTRY_NAME string = primary.outputs.containerRegistryName
 output LAB06_CONTAINER_APP_NAME string = secondary.outputs.containerAppName
+output LAB05_RETAIL_DATABASE_NAME string = secondary.outputs.retailDatabaseName
 output LAB04_CONTAINER_APPS_ENVIRONMENT_ID string = secondary.outputs.containerAppsEnvironmentId
 output FRONT_DOOR_ENDPOINT string = global.outputs.frontDoorEndpointHostName
 output FRONT_DOOR_PROFILE_ID string = global.outputs.frontDoorProfileId

@@ -10,6 +10,9 @@ Run every command from the repository root.
 ## Prerequisites
 
 - Azure CLI installed and authenticated with `az login`.
+- .NET SDK 8 or later and first-run outbound HTTPS access to
+  `https://api.nuget.org` for `-Action Deploy`. They are not required for
+  `Validate` or `WhatIf`.
 - Permission to create subscription deployments and resource groups.
 - Contributor and role-assignment permissions in the four generated resource
   groups.
@@ -241,7 +244,11 @@ Pass one or more location arguments to override the defaults. For example:
 
 For a raw Azure CLI deployment, set the deployment record with `--location`
 and pass the three resource locations through `--parameters`, as shown in the
-earlier `az deployment sub what-if` example.
+earlier `az deployment sub what-if` example. A raw
+`az deployment sub create` provisions only the infrastructure because ARM
+cannot package the repository-local `data\eshop.bacpac`. Use
+`Deploy-Lab04.ps1 -Action Deploy` when the `eshop_ai` database must be
+initialized.
 
 Confirm SQL, VM, DMS, SQL MI, and zone-redundant Container Apps availability
 before deploying to different regions. Locations cannot be changed in place for
@@ -271,6 +278,23 @@ Purpose model without an additional prompt:
 
 To deploy Azure SQL Database instead, pass `-DatabaseMode azureSql`.
 
+Both targets are provisioned without an empty child database. After a
+successful deployment, the script imports `data\eshop.bacpac` as `eshop_ai`
+with SqlPackage and the signed-in Entra administrator's Azure SQL token. The
+script automatically discovers the caller's public IPv4 address through
+`api.ipify.org`, temporarily permits only that `/32`, and removes the rule in
+`finally`. Azure SQL public network access is restored to its original
+disabled state.
+
+The importer installs pinned Microsoft.SqlPackage `170.5.96` with
+`dotnet tool` into the ignored project-local
+`.azure\tools\sqlpackage\170.5.96` cache. It uses an explicit nuget.org source,
+does not alter persistent NuGet configuration or global tools, verifies the
+reported version, and reuses the cache on subsequent deployments. If
+installation fails, verify `dotnet --list-sdks`, HTTPS access to
+`api.nuget.org`, and proxy or certificate trust. An incomplete version cache
+is rejected with its exact cleanup path rather than silently using it.
+
 Do not switch database modes for an existing environment name. Conditional
 Bicep resources omitted during an incremental deployment are not automatically
 deleted.
@@ -296,6 +320,13 @@ the deployment stops rather than selecting a different administrator.
 Deployments are deterministic for the subscription, environment name, and
 prefix, so a failed deployment can normally be corrected and rerun with the
 same values.
+
+An existing `eshop_ai` database is always preserved. The deployment checks for
+it before public-IP discovery or any SQL network change and skips the BACPAC
+import when it exists. If import fails after creating the database, inspect
+the database before rerunning because preserve-on-rerun behavior does not drop
+or repair a partially imported database. Import failures report SqlPackage and
+temporary-access cleanup errors explicitly.
 
 A `ReferencedResourceNotProvisioned` error that reports an application VNet in
 `Updating` state during `PutSubnetOperation` is a deployment-order race. The

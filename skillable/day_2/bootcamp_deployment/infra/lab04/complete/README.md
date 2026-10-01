@@ -8,17 +8,18 @@ directory remain resource-group scoped and can still be built independently.
 
 ### `bootstrap.bicep`
 
-Creates the RBAC-enabled Key Vault, VM credential secrets, and separate code
-build and deployment managed identities. It grants the selected Microsoft Entra
-administrator Key Vault Secrets Officer.
+Creates the RBAC-enabled Key Vault, VM credential secrets, separate code build
+and deployment identities, and a dedicated retail runtime identity. It grants
+the selected Microsoft Entra administrator Key Vault Secrets Officer and the
+runtime identity Key Vault Secrets User.
 
 ### `primary.bicep`
 
 Creates the primary database VNet, two private VMs, Bastion, ACR, DMS, and
 workload role assignments. Its `databaseMode` parameter controls Azure SQL:
 
-- `azureSql`: create the Entra-only S0 `eShop` database, private endpoint,
-  private DNS zone, and VNet link.
+- `azureSql`: create the Entra-only logical server, private endpoint, private
+  DNS zone, and VNet link. Deployment automation imports `eshop_ai` afterward.
 - `sqlMi`: omit all Azure SQL logical server and database resources.
 
 ### `secondary.bicep`
@@ -29,10 +30,13 @@ Container App.
 
 - `azureSql`: link the application and secondary VNets to the primary SQL
   private DNS zone.
-- `sqlMi`: create the delegated SQL MI subnet, General Purpose Gen5 managed
-  instance, and `eShop` managed database.
+- `sqlMi`: create the delegated SQL MI subnet and General Purpose Gen5 managed
+  instance. Deployment automation imports `eshop_ai` afterward.
 
-The entry point returns a unified database FQDN, name, and type.
+The entry point returns a unified infrastructure database FQDN, BACPAC
+database name (`eshop_ai`), and type. The Container App separately targets the
+future migrated retail database `eshop` through a Bicep-owned passwordless
+environment variable.
 
 ### `global.bicep`
 
@@ -56,6 +60,9 @@ it because SQL MI is now selected exclusively through `databaseMode`.
 - The code-build identity receives only ACR push. The code-deployment identity
   receives only Container App contributor and Front Door reader permissions at
   resource scope.
+- The user-assigned retail runtime identity resolves Key Vault-backed ACA
+  secrets. Lab 05 grants its contained `eshop` database user only
+  `db_datareader` and `db_datawriter` after migration.
 - Deployment environments require a reviewer and exact branch policy. GitHub
   setup verifies both controls and stops when they cannot be enforced.
 - The workflow approves only the expected Front Door Private Link request and

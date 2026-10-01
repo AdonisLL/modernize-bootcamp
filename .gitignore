@@ -457,3 +457,4 @@ FodyWeavers.xsd
 *.msp
 
 .fake
+.azure

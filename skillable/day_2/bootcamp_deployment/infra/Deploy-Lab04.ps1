@@ -292,6 +292,11 @@ try {
 
     if ($Action -eq 'Deploy') {
         Approve-FrontDoorPrivateLink -DeploymentName $armDeploymentName
+        $importScriptPath = Join-Path `
+            (Split-Path -Parent $PSScriptRoot) `
+            'assets\scripts\Import-Lab04Database.ps1'
+        & $importScriptPath -DeploymentName $armDeploymentName
+
         $configureScriptPath = Join-Path `
             (Split-Path -Parent $PSScriptRoot) `
             'assets\scripts\Configure-Lab04GitHub.ps1'

@@ -3,13 +3,13 @@ name: Lab 06 - Validate and deploy retail app
 on:
   pull_request:
     paths:
-      - labs/day-1/03-modernize-with-ghcp/sample-app/**
+      - labs/day-1/04-deploy-to-azure/sample-app/**
       - .github/workflows/lab06-retail-cicd.yml
   push:
     branches:
       - main
     paths:
-      - labs/day-1/03-modernize-with-ghcp/sample-app/**
+      - labs/day-1/04-deploy-to-azure/sample-app/**
       - .github/workflows/lab06-retail-cicd.yml
   workflow_dispatch:
 
@@ -21,9 +21,9 @@ permissions:
   contents: read
 
 env:
-  SOLUTION: labs/day-1/03-modernize-with-ghcp/sample-app/eShopLiteFx.sln
-  BUILD_CONTEXT: labs/day-1/03-modernize-with-ghcp/sample-app
-  DOCKERFILE: labs/day-1/03-modernize-with-ghcp/sample-app/src/eShopLite.StoreFx/Dockerfile
+  SOLUTION: labs/day-1/04-deploy-to-azure/sample-app/eShopLiteFx.sln
+  BUILD_CONTEXT: labs/day-1/04-deploy-to-azure/sample-app
+  DOCKERFILE: labs/day-1/04-deploy-to-azure/sample-app/src/eShopLite.StoreFx/Dockerfile
   IMAGE_REPOSITORY: caldova-retail
 
 jobs:
@@ -145,6 +145,7 @@ jobs:
           ACR_NAME: ${{ vars.LAB06_CONTAINER_REGISTRY_NAME }}
           APP_NAME: ${{ vars.LAB06_CONTAINER_APP_NAME }}
           APP_RESOURCE_GROUP: ${{ vars.LAB04_SECONDARY_RESOURCE_GROUP }}
+          RUNTIME_IDENTITY_RESOURCE_ID: ${{ vars.LAB06_RUNTIME_IDENTITY_RESOURCE_ID }}
           IMAGE_REFERENCE: ${{ needs.build-and-push.outputs.image }}
         run: |
           set -euo pipefail
@@ -155,6 +156,26 @@ jobs:
             --query identity.type \
             --output tsv)
           [[ "$identity_type" == *SystemAssigned* ]]
+          identity_json=$(az containerapp show \
+            --name "$APP_NAME" \
+            --resource-group "$APP_RESOURCE_GROUP" \
+            --query identity.userAssignedIdentities \
+            --output json)
+          jq -e --arg id "$RUNTIME_IDENTITY_RESOURCE_ID" 'has($id)' \
+            <<< "$identity_json" > /dev/null
+
+          env_names=$(az containerapp show \
+            --name "$APP_NAME" \
+            --resource-group "$APP_RESOURCE_GROUP" \
+            --query 'properties.template.containers[0].env[].name' \
+            --output json)
+          for required_name in \
+            ASPNETCORE_ENVIRONMENT \
+            AZURE_CLIENT_ID \
+            ConnectionStrings__StoreDbContext; do
+            jq -e --arg name "$required_name" 'index($name) != null' \
+              <<< "$env_names" > /dev/null
+          done
 
       - name: Deploy image by digest
         id: deploy
@@ -163,29 +184,14 @@ jobs:
           ACR_NAME: ${{ vars.LAB06_CONTAINER_REGISTRY_NAME }}
           APP_NAME: ${{ vars.LAB06_CONTAINER_APP_NAME }}
           APP_RESOURCE_GROUP: ${{ vars.LAB04_SECONDARY_RESOURCE_GROUP }}
-          LAB_PREFIX: ${{ vars.LAB04_PREFIX }}
-          LAB_SUFFIX: ${{ vars.LAB04_SUFFIX }}
           IMAGE_REFERENCE: ${{ needs.build-and-push.outputs.image }}
         run: |
           set -euo pipefail
-          login_server="${ACR_NAME}.azurecr.io"
-          name_token=$(tr -d '-' <<< "$LAB_PREFIX" | cut -c1-12)
-          sql_fqdn="${name_token}sql${LAB_SUFFIX}.database.windows.net"
-
-          az containerapp registry set \
-            --name "$APP_NAME" \
-            --resource-group "$APP_RESOURCE_GROUP" \
-            --server "$login_server" \
-            --identity system \
-            --output none
-
-          connection_string="Server=tcp:${sql_fqdn},1433;Initial Catalog=eShop;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
           revision_name=$(az containerapp update \
             --name "$APP_NAME" \
             --resource-group "$APP_RESOURCE_GROUP" \
             --image "$IMAGE_REFERENCE" \
             --revision-suffix "${GITHUB_SHA:0:12}" \
-            --set-env-vars "ConnectionStrings__StoreDbContext=${connection_string}" \
             --query properties.latestRevisionName \
             --output tsv)
           test -n "$revision_name"

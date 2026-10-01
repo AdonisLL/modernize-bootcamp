@@ -1,7 +1,6 @@
 param name string
 param location string
 param subnetId string
-param databaseName string = 'eShop'
 param entraAdminObjectId string
 param entraAdminLogin string
 
@@ -58,20 +57,7 @@ resource managedInstance 'Microsoft.Sql/managedInstances@2023-08-01' = {
   }
 }
 
-resource database 'Microsoft.Sql/managedInstances/databases@2023-08-01' = {
-  parent: managedInstance
-  name: databaseName
-  location: location
-  tags: tags
-  properties: {
-    catalogCollation: 'DATABASE_DEFAULT'
-    collation: 'SQL_Latin1_General_CP1_CI_AS'
-    createMode: 'Default'
-  }
-}
-
 output id string = managedInstance.id
 output name string = managedInstance.name
 output fullyQualifiedDomainName string = managedInstance.properties.fullyQualifiedDomainName
 output publicEndpoint string = '${replace(managedInstance.properties.fullyQualifiedDomainName, '${managedInstance.name}.', '${managedInstance.name}.public.')},3342'
-output databaseName string = database.name

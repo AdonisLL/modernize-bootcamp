@@ -202,7 +202,9 @@ jobs:
               vmAdminPassword="$VM_ADMIN_PASSWORD" \
             --query properties.outputs --output json)"
           echo "registry-name=$(jq -r '.containerRegistryName.value' <<< "$outputs")" >> "$GITHUB_OUTPUT"
+          echo "registry-login-server=$(jq -r '.containerRegistryLoginServer.value' <<< "$outputs")" >> "$GITHUB_OUTPUT"
           echo "private-dns-zone=$(jq -r '.privateDnsZoneName.value' <<< "$outputs")" >> "$GITHUB_OUTPUT"
+          echo "database-fqdn=$(jq -r '(.databaseFqdn.value // .sqlServerFqdn.value // \"\")' <<< "$outputs")" >> "$GITHUB_OUTPUT"
           echo "database-vnet-id=$(jq -r '.databaseVnetId.value' <<< "$outputs")" >> "$GITHUB_OUTPUT"
           echo "database-vnet-name=$(jq -r '.databaseVnetName.value' <<< "$outputs")" >> "$GITHUB_OUTPUT"
 
@@ -231,6 +233,14 @@ jobs:
             sqlEntraAdminObjectId="${{ vars.LAB04_SQL_ADMIN_OBJECT_ID }}"
             sqlEntraAdminLogin="${{ vars.LAB04_SQL_ADMIN_LOGIN }}"
           )
+          if [[ "${{ inputs.implementation }}" == "complete" ]]; then
+            params+=(
+              containerRegistryLoginServer="${{ steps.primary.outputs.registry-login-server }}"
+              primaryDatabaseFqdn="${{ steps.primary.outputs.database-fqdn }}"
+              runtimeIdentityResourceId="${{ vars.LAB06_RUNTIME_IDENTITY_RESOURCE_ID }}"
+              runtimeIdentityClientId="${{ vars.LAB06_RUNTIME_IDENTITY_CLIENT_ID }}"
+            )
+          fi
           az deployment group what-if \
             --resource-group "${{ vars.LAB04_SECONDARY_RESOURCE_GROUP }}" \
             --template-file "$IAC_PATH/secondary.bicep" \

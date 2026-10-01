@@ -25,12 +25,17 @@ param sqlMiPricingModel string = 'Freemium'
 
 param codeDeploymentPrincipalId string
 param containerRegistryName string
+param containerRegistryLoginServer string
 param containerRegistryResourceGroupName string
 param privateDnsZoneResourceGroupName string
 param privateDnsZoneName string = 'privatelink${environment().suffixes.sqlServerHostname}'
 param primaryDatabaseResourceGroupName string
 param primaryDatabaseVnetName string
 param primaryDatabaseVnetId string
+param primaryDatabaseFqdn string
+param runtimeIdentityResourceId string
+param runtimeIdentityClientId string
+param keyVaultSecretReferences array = []
 param sqlEntraAdminObjectId string
 param sqlEntraAdminLogin string
 
@@ -48,6 +53,7 @@ param tags object = {
 }
 
 var nameToken = take(replace(prefix, '-', ''), 12)
+var retailDatabaseName = 'eshop'
 
 module network './modules/regional-network.bicep' = {
   name: 'secondary-network'
@@ -83,6 +89,14 @@ module regionalApp './modules/container-app-region.bicep' = {
     infrastructureSubnetId: network.outputs.containerAppsSubnetId
     logAnalyticsCustomerId: monitoring.outputs.customerId
     logAnalyticsSharedKey: monitoring.outputs.sharedKey
+    containerRegistryLoginServer: containerRegistryLoginServer
+    runtimeIdentityResourceId: runtimeIdentityResourceId
+    runtimeIdentityClientId: runtimeIdentityClientId
+    retailDatabaseFqdn: databaseMode == 'azureSql'
+      ? primaryDatabaseFqdn
+      : managedInstance.?outputs.?fullyQualifiedDomainName ?? ''
+    retailDatabaseName: retailDatabaseName
+    keyVaultSecretReferences: keyVaultSecretReferences
     tags: tags
   }
 }
@@ -170,7 +184,6 @@ module managedInstance './modules/sql-managed-instance.bicep' = if (databaseMode
     name: toLower('${nameToken}mi${suffix}')
     location: location
     subnetId: network.outputs.managedInstanceSubnetId
-    databaseName: 'eShop'
     entraAdminObjectId: sqlEntraAdminObjectId
     entraAdminLogin: sqlEntraAdminLogin
     entraAdminPrincipalType: sqlEntraAdminPrincipalType
@@ -188,7 +201,12 @@ output applicationVnetName string = network.outputs.applicationVnetName
 output databaseVnetId string = network.outputs.databaseVnetId
 output databaseVnetName string = network.outputs.databaseVnetName
 output managedInstanceSubnetId string = network.outputs.managedInstanceSubnetId
+output managedInstanceName string = managedInstance.?outputs.?name ?? ''
 output databaseFqdn string = managedInstance.?outputs.?fullyQualifiedDomainName ?? ''
 output sqlMiPublicEndpoint string = managedInstance.?outputs.?publicEndpoint ?? ''
-output databaseName string = managedInstance.?outputs.?databaseName ?? ''
+output sqlMiNetworkSecurityGroupName string = databaseMode == 'sqlMi'
+  ? '${prefix}-sqlmi-${suffix}-nsg'
+  : ''
+output databaseName string = databaseMode == 'sqlMi' ? 'eshop_ai' : ''
 output databaseType string = databaseMode
+output retailDatabaseName string = retailDatabaseName

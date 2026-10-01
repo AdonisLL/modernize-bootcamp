@@ -4,6 +4,12 @@ param regionLabel string
 param location string
 param infrastructureSubnetId string
 param logAnalyticsCustomerId string
+param containerRegistryLoginServer string
+param runtimeIdentityResourceId string
+param runtimeIdentityClientId string
+param retailDatabaseFqdn string
+param retailDatabaseName string = 'eshop'
+param keyVaultSecretReferences array = []
 
 @secure()
 param logAnalyticsSharedKey string
@@ -13,6 +19,27 @@ param tags object = {}
 
 var environmentName = '${prefix}-${regionLabel}-${suffix}-cae'
 var appName = '${prefix}-${regionLabel}-${suffix}-app'
+var retailDatabaseConnectionString = 'Server=tcp:${retailDatabaseFqdn},1433;Initial Catalog=${retailDatabaseName};User Id=${runtimeIdentityClientId};Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+var secretEnvironmentVariables = [
+  for secret in keyVaultSecretReferences: {
+    name: secret.environmentVariable
+    secretRef: secret.name
+  }
+]
+var containerEnvironmentVariables = concat([
+  {
+    name: 'ASPNETCORE_ENVIRONMENT'
+    value: 'Production'
+  }
+  {
+    name: 'AZURE_CLIENT_ID'
+    value: runtimeIdentityClientId
+  }
+  {
+    name: 'ConnectionStrings__StoreDbContext'
+    value: retailDatabaseConnectionString
+  }
+], secretEnvironmentVariables)
 
 resource environment 'Microsoft.App/managedEnvironments@2025-01-01' = {
   name: environmentName
@@ -51,13 +78,29 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   location: location
   tags: tags
   identity: {
-    type: 'SystemAssigned'
+    type: 'SystemAssigned, UserAssigned'
+    userAssignedIdentities: {
+      '${runtimeIdentityResourceId}': {}
+    }
   }
   properties: {
     environmentId: environment.id
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
+      registries: [
+        {
+          server: containerRegistryLoginServer
+          identity: 'system'
+        }
+      ]
+      secrets: [
+        for secret in keyVaultSecretReferences: {
+          name: secret.name
+          keyVaultUrl: secret.keyVaultUrl
+          identity: runtimeIdentityResourceId
+        }
+      ]
       ingress: {
         external: true
         targetPort: 8080
@@ -80,6 +123,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.5')
             memory: '1Gi'
           }
+          env: containerEnvironmentVariables
           probes: [
             {
               type: 'Startup'

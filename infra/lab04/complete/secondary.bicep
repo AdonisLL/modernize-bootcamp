@@ -12,12 +12,17 @@ param location string = 'centralus'
 param applicationLocation string = 'centralus'
 param codeDeploymentPrincipalId string
 param containerRegistryName string
+param containerRegistryLoginServer string
 param containerRegistryResourceGroupName string
 param privateDnsZoneResourceGroupName string
 param privateDnsZoneName string = 'privatelink${environment().suffixes.sqlServerHostname}'
 param primaryDatabaseResourceGroupName string
 param primaryDatabaseVnetName string
 param primaryDatabaseVnetId string
+param primaryDatabaseFqdn string
+param runtimeIdentityResourceId string
+param runtimeIdentityClientId string
+param keyVaultSecretReferences array = []
 
 param tags object = {
   Application: 'Caldova'
@@ -26,6 +31,7 @@ param tags object = {
 }
 
 var nameToken = take(replace(prefix, '-', ''), 12)
+var retailDatabaseName = 'eshop'
 
 module network './modules/regional-network.bicep' = {
   name: 'secondary-network'
@@ -61,6 +67,12 @@ module regionalApp './modules/container-app-region.bicep' = {
     infrastructureSubnetId: network.outputs.containerAppsSubnetId
     logAnalyticsCustomerId: monitoring.outputs.customerId
     logAnalyticsSharedKey: monitoring.outputs.sharedKey
+    containerRegistryLoginServer: containerRegistryLoginServer
+    runtimeIdentityResourceId: runtimeIdentityResourceId
+    runtimeIdentityClientId: runtimeIdentityClientId
+    retailDatabaseFqdn: primaryDatabaseFqdn
+    retailDatabaseName: retailDatabaseName
+    keyVaultSecretReferences: keyVaultSecretReferences
     tags: tags
   }
 }
@@ -151,3 +163,4 @@ output applicationVnetName string = network.outputs.applicationVnetName
 output databaseVnetId string = network.outputs.databaseVnetId
 output databaseVnetName string = network.outputs.databaseVnetName
 output managedInstanceSubnetId string = network.outputs.managedInstanceSubnetId
+output retailDatabaseName string = retailDatabaseName

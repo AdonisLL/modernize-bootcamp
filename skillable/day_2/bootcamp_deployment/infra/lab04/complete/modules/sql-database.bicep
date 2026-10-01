@@ -1,5 +1,4 @@
 param serverName string
-param databaseName string = 'eShop'
 param location string
 param entraAdminObjectId string
 param entraAdminLogin string
@@ -33,27 +32,6 @@ resource server 'Microsoft.Sql/servers@2023-08-01' = {
     minimalTlsVersion: '1.2'
     publicNetworkAccess: 'Disabled'
     restrictOutboundNetworkAccess: 'Disabled'
-  }
-}
-
-resource database 'Microsoft.Sql/servers/databases@2023-08-01' = {
-  parent: server
-  name: databaseName
-  location: location
-  tags: tags
-  sku: {
-    name: 'S0'
-    tier: 'Standard'
-    capacity: 10
-  }
-  properties: {
-    autoPauseDelay: -1
-    catalogCollation: 'DATABASE_DEFAULT'
-    collation: 'SQL_Latin1_General_CP1_CI_AS'
-    maxSizeBytes: 268435456000
-    readScale: 'Disabled'
-    requestedBackupStorageRedundancy: 'Local'
-    zoneRedundant: false
   }
 }
 
@@ -120,5 +98,4 @@ resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2
 output serverId string = server.id
 output serverName string = server.name
 output serverFqdn string = server.properties.fullyQualifiedDomainName
-output databaseName string = database.name
 output privateDnsZoneName string = privateDnsZone.name

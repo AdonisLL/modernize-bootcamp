@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: modernize-bootcamp
+metadata:
+    template: azd-init@1.34.2
+services:
+    eshoplite-storefx:
+        project: labs/day-1/04-deploy-to-azure/sample-app/src/eShopLite.StoreFx
+        host: containerapp
+        language: dotnet
+resources:
+    eshoplite-storefx:
+        type: host.containerapp
+        port: 8080

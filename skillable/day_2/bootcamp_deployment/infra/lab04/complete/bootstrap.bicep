@@ -22,9 +22,14 @@ var safePrefix = take(replace(prefix, '-', ''), 13)
 var keyVaultName = toLower('${safePrefix}${suffix}-kv')
 var codeBuildIdentityName = '${prefix}-code-build-${suffix}'
 var codeDeploymentIdentityName = '${prefix}-code-deploy-${suffix}'
+var runtimeIdentityName = '${prefix}-runtime-${suffix}'
 var keyVaultSecretsOfficerRoleDefinitionId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
   'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+)
+var keyVaultSecretsUserRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '4633458b-17de-408a-b874-0445c86b69e6'
 )
 
 resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' = {
@@ -71,6 +76,12 @@ resource codeDeploymentIdentity 'Microsoft.ManagedIdentity/userAssignedIdentitie
   tags: tags
 }
 
+resource runtimeIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
+  name: runtimeIdentityName
+  location: location
+  tags: tags
+}
+
 resource secretsOfficerAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(keyVault.id, keyVaultAdministratorObjectId, keyVaultSecretsOfficerRoleDefinitionId)
   scope: keyVault
@@ -81,6 +92,16 @@ resource secretsOfficerAssignment 'Microsoft.Authorization/roleAssignments@2022-
   }
 }
 
+resource runtimeSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, runtimeIdentity.id, keyVaultSecretsUserRoleDefinitionId)
+  scope: keyVault
+  properties: {
+    roleDefinitionId: keyVaultSecretsUserRoleDefinitionId
+    principalId: runtimeIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 output keyVaultName string = keyVault.name
 output codeBuildIdentityName string = codeBuildIdentity.name
 output codeBuildClientId string = codeBuildIdentity.properties.clientId
@@ -88,3 +109,7 @@ output codeBuildPrincipalId string = codeBuildIdentity.properties.principalId
 output codeDeploymentIdentityName string = codeDeploymentIdentity.name
 output codeDeploymentClientId string = codeDeploymentIdentity.properties.clientId
 output codeDeploymentPrincipalId string = codeDeploymentIdentity.properties.principalId
+output runtimeIdentityName string = runtimeIdentity.name
+output runtimeIdentityId string = runtimeIdentity.id
+output runtimeIdentityClientId string = runtimeIdentity.properties.clientId
+output runtimeIdentityPrincipalId string = runtimeIdentity.properties.principalId

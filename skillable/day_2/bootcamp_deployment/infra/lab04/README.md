@@ -34,12 +34,15 @@ azd up --no-prompt
 ```
 
 The targets are mutually exclusive. Both use Microsoft Entra-only
-authentication and contain an `eShop` database. Azure SQL Database disables its
-public endpoint. SQL MI enables its public endpoint, but Bicep does not add a
-broad TCP 3342 rule; participant access is added later for one public IPv4
-address. Database mode is immutable for an AZD environment because incremental
-Bicep does not delete resources omitted by a condition. To change modes, run
-`azd down --purge` and create a new AZD environment.
+authentication. Bicep creates the server or managed instance without an empty
+database; the AZD post-provision hook imports `data\eshop.bacpac` as
+`eshop_ai`. Azure SQL Database normally disables its public endpoint. SQL MI
+enables its public endpoint, but Bicep does not add a broad TCP 3342 rule. The
+importer temporarily allows only the deployer's discovered public IPv4 `/32`
+and removes that access afterward. Participant access is added later for one
+public IPv4 address. Database mode is immutable for an AZD environment because
+incremental Bicep does not delete resources omitted by a condition. To change
+modes, run `azd down --purge` and create a new AZD environment.
 
 ## Deployment composition
 
@@ -47,7 +50,8 @@ Bicep does not delete resources omitted by a condition. To change modes, run
 secondary, and global resource groups, then invokes the resource-group-scoped
 Lab 04 modules in dependency order:
 
-1. Bootstrap Key Vault and code-deployment managed identity.
+1. Bootstrap Key Vault plus separate build, deployment, and retail runtime
+   managed identities.
 2. Primary network, VMs, Bastion, ACR, DMS, and Azure SQL when selected.
 3. Secondary database network, application network, Container Apps, monitoring,
    and SQL MI when selected.
@@ -56,6 +60,13 @@ Lab 04 modules in dependency order:
 AZD captures the selected database endpoint, resource-group names, ACR and
 Container App names, identity IDs, and Front Door endpoint as environment
 values. Inspect them with `azd env get-values`.
+
+An existing `eshop_ai` database is preserved on rerun, so the post-provision
+hook skips import before downloading tools or changing SQL network access.
+When import is required, the hook installs pinned Microsoft.SqlPackage
+`170.5.96` into the ignored project-local `.azure\tools` cache by using the
+.NET SDK and an explicit nuget.org source. It does not change global tools or
+persistent NuGet configuration.
 
 ## Multi-subscription naming
 
@@ -89,7 +100,9 @@ ACR intentionally retains public network access on the Basic SKU so
 GitHub-hosted runners can push images. Its administrator account is disabled.
 The code-build identity receives only `AcrPush`; the code-deployment identity
 receives only Container App update and Front Door read permissions; the
-Container App's system identity receives only `AcrPull`.
+Container App's system identity receives only `AcrPull`. The dedicated
+user-assigned runtime identity receives Key Vault secret-read access and is
+granted database roles only after Lab 05 migrates `eshop`.
 
 This is a training deployment, not a production security baseline. See
 [Security posture and lab exceptions](../../README.md#security-posture-and-lab-exceptions)
@@ -177,7 +190,9 @@ If necessary, ask an administrator to run the script or use
 
 The Lab 04 workflow can then preview and reprovision the same deterministic
 environment name, whether the initial deployment used AZD or direct Bicep.
-Lab 06 receives the selected database FQDN instead of assuming Azure SQL.
+Lab 06 receives the runtime identity metadata needed to verify the existing
+Container App. Bicep owns the passwordless `eshop` connection setting, while
+GitHub Actions updates only the image.
 The script creates distinct Lab 04 preview/deploy and Lab 06 build/deploy
 identities. Only the deployment environments can mutate runtime resources.
 It configures and verifies a required reviewer and an exact deployment branch

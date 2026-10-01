@@ -10,3 +10,7 @@ hooks:
     shell: pwsh
     run: ./infra/hooks/preprovision.ps1
     interactive: true
+  postprovision:
+    shell: pwsh
+    run: ./infra/hooks/postprovision.ps1
+    interactive: true
