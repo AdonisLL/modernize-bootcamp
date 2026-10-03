@@ -26,7 +26,7 @@ var secretEnvironmentVariables = [
     secretRef: secret.name
   }
 ]
-var containerEnvironmentVariables = concat([
+var baseEnvironmentVariables = [
   {
     name: 'ASPNETCORE_ENVIRONMENT'
     value: 'Production'
@@ -35,11 +35,18 @@ var containerEnvironmentVariables = concat([
     name: 'AZURE_CLIENT_ID'
     value: runtimeIdentityClientId
   }
+]
+var databaseEnvironmentVariables = empty(retailDatabaseFqdn) ? [] : [
   {
     name: 'ConnectionStrings__StoreDbContext'
     value: retailDatabaseConnectionString
   }
-], secretEnvironmentVariables)
+]
+var containerEnvironmentVariables = concat(
+  baseEnvironmentVariables,
+  databaseEnvironmentVariables,
+  secretEnvironmentVariables
+)
 
 resource environment 'Microsoft.App/managedEnvironments@2025-01-01' = {
   name: environmentName
@@ -63,7 +70,7 @@ resource environment 'Microsoft.App/managedEnvironments@2025-01-01' = {
         workloadProfileType: 'Consumption'
       }
     ]
-    zoneRedundant: true
+    zoneRedundant: false
   }
 }
 
@@ -85,7 +92,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: containerRegistryLoginServer
-          identity: 'system'
+          identity: runtimeIdentityResourceId
         }
       ]
       secrets: [

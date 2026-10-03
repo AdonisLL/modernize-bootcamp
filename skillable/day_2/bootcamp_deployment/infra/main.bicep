@@ -127,6 +127,7 @@ module secondary './lab04/complete/secondary.bicep' = {
     primaryDatabaseFqdn: primary.outputs.databaseFqdn
     runtimeIdentityResourceId: bootstrap.outputs.runtimeIdentityId
     runtimeIdentityClientId: bootstrap.outputs.runtimeIdentityClientId
+    runtimeIdentityPrincipalId: bootstrap.outputs.runtimeIdentityPrincipalId
     sqlEntraAdminObjectId: sqlEntraAdminObjectId
     sqlEntraAdminLogin: sqlEntraAdminLogin
     tags: tags

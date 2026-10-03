@@ -14,6 +14,8 @@ var databaseVnetName = '${prefix}-db-${regionLabel}-${suffix}-vnet'
 var applicationVnetName = '${prefix}-app-${regionLabel}-${suffix}-vnet'
 var databaseSecondOctet = split(databaseAddressPrefix, '.')[1]
 var applicationSecondOctet = split(applicationAddressPrefix, '.')[1]
+var managedInstanceAddressPrefix = '10.${databaseSecondOctet}.5.0/24'
+var managedInstanceAddressToken = replace(replace(managedInstanceAddressPrefix, '.', '-'), '/', '-')
 
 resource vmNsg 'Microsoft.Network/networkSecurityGroups@2024-05-01' = if (enablePrimaryServices) {
   name: '${prefix}-vm-${suffix}-nsg'
@@ -128,6 +130,58 @@ resource managedInstanceNsg 'Microsoft.Network/networkSecurityGroups@2024-05-01'
           destinationAddressPrefix: 'VirtualNetwork'
         }
       }
+      {
+        name: 'Microsoft.Sql-managedInstances_UseOnly_mi-healthprobe-in-${managedInstanceAddressToken}-v12'
+        properties: {
+          priority: 100
+          access: 'Allow'
+          direction: 'Inbound'
+          protocol: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+          sourceAddressPrefix: 'AzureLoadBalancer'
+          destinationAddressPrefix: managedInstanceAddressPrefix
+        }
+      }
+      {
+        name: 'Microsoft.Sql-managedInstances_UseOnly_mi-internal-in-${managedInstanceAddressToken}-v12'
+        properties: {
+          priority: 101
+          access: 'Allow'
+          direction: 'Inbound'
+          protocol: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+          sourceAddressPrefix: managedInstanceAddressPrefix
+          destinationAddressPrefix: managedInstanceAddressPrefix
+        }
+      }
+      {
+        name: 'Microsoft.Sql-managedInstances_UseOnly_mi-internal-out-${managedInstanceAddressToken}-v12'
+        properties: {
+          priority: 101
+          access: 'Allow'
+          direction: 'Outbound'
+          protocol: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+          sourceAddressPrefix: managedInstanceAddressPrefix
+          destinationAddressPrefix: managedInstanceAddressPrefix
+        }
+      }
+      {
+        name: 'Microsoft.Sql-managedInstances_UseOnly_mi-optional-azure-out-${managedInstanceAddressToken}'
+        properties: {
+          priority: 100
+          access: 'Allow'
+          direction: 'Outbound'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '443'
+          sourceAddressPrefix: managedInstanceAddressPrefix
+          destinationAddressPrefix: 'AzureCloud'
+        }
+      }
     ]
   }
 }
@@ -138,7 +192,22 @@ resource managedInstanceRouteTable 'Microsoft.Network/routeTables@2024-05-01' = 
   tags: tags
   properties: {
     disableBgpRoutePropagation: false
-    routes: []
+    routes: [
+      {
+        name: 'Microsoft.Sql-managedInstances_UseOnly_subnet-${managedInstanceAddressToken}-to-vnetlocal'
+        properties: {
+          addressPrefix: managedInstanceAddressPrefix
+          nextHopType: 'VnetLocal'
+        }
+      }
+      {
+        name: 'Microsoft.Sql-managedInstances_UseOnly_optional-AzureCloud.${location}'
+        properties: {
+          addressPrefix: 'AzureCloud.${location}'
+          nextHopType: 'Internet'
+        }
+      }
+    ]
   }
 }
 
@@ -149,7 +218,7 @@ resource managedInstanceSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-0
     dmsSubnet
   ]
   properties: {
-    addressPrefix: '10.${databaseSecondOctet}.5.0/24'
+    addressPrefix: managedInstanceAddressPrefix
     networkSecurityGroup: {
       id: managedInstanceNsg.id
     }

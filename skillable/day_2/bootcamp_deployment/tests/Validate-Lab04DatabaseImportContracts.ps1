@@ -135,6 +135,10 @@ Assert-Contract (
     $deployScript -match '-DeploymentName\s+\$armDeploymentName'
 ) 'The direct Deploy action must invoke the shared importer with ARM outputs.'
 Assert-Contract (
+    $deployScript -match '\.IndexOf\(\s*\$VmAdminUsername,\s*\[StringComparison\]::OrdinalIgnoreCase\s*\)\s+-ge 0' -and
+    $deployScript -notmatch '\.Contains\(\s*\$VmAdminUsername,\s*\[StringComparison\]'
+) 'VM password validation must remain compatible with Windows PowerShell and .NET Framework.'
+Assert-Contract (
     $helperScript -match 'dotnet tool install Microsoft\.SqlPackage' -and
     $helperScript -match '--tool-path\s+\$temporaryPath' -and
     $helperScript -match '--add-source\s+\$script:Lab04SqlPackageFeed' -and
@@ -145,6 +149,12 @@ Assert-Contract (
     $importScript -match 'Resolve-Lab04SqlPackage\s+-ProjectRoot\s+\$projectRoot' -and
     $importScript -match '&\s+\$sqlPackagePath\s+@sqlPackageArguments'
 ) 'The importer must resolve and invoke the project-local SqlPackage executable.'
+Assert-Contract (
+    $importScript -match 'function Set-Lab04ContainerAppDatabaseConfiguration' -and
+    $importScript -match 'az containerapp update' -and
+    $importScript -match 'ConnectionStrings__StoreDbContext=\$connectionString' -and
+    $importScript -match 'LAB06_RUNTIME_IDENTITY_CLIENT_ID'
+) 'Post-provision automation must finalize the Container App database connection after SQL MI exposes its FQDN.'
 $existingDatabaseCheckIndex = $importScript.IndexOf(
     'if ([int]$existingDatabaseCount -gt 0)'
 )

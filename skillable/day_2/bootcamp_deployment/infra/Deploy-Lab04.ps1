@@ -236,7 +236,10 @@ if (
     $plainTextPassword -notmatch '[0-9]' -or
     $plainTextPassword -notmatch '[!@$%*_\-+=]' -or
     $plainTextPassword -notmatch '^[a-zA-Z0-9!@$%*_\-+=]+$' -or
-    $plainTextPassword.Contains($VmAdminUsername, [StringComparison]::OrdinalIgnoreCase)
+    $plainTextPassword.IndexOf(
+        $VmAdminUsername,
+        [StringComparison]::OrdinalIgnoreCase
+    ) -ge 0
 ) {
     $plainTextPassword = $null
     throw 'The VM password must be 12-72 characters, exclude the username, and contain lowercase, uppercase, numeric, and ! @ $ % * _ - + = characters only.'

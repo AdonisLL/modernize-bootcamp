@@ -35,6 +35,7 @@ param primaryDatabaseVnetId string
 param primaryDatabaseFqdn string
 param runtimeIdentityResourceId string
 param runtimeIdentityClientId string
+param runtimeIdentityPrincipalId string
 param keyVaultSecretReferences array = []
 param sqlEntraAdminObjectId string
 param sqlEntraAdminLogin string
@@ -79,8 +80,20 @@ module monitoring './modules/monitor.bicep' = {
   }
 }
 
+module registryPull './modules/acr-pull-role.bicep' = {
+  name: 'application-acr-pull'
+  scope: resourceGroup(containerRegistryResourceGroupName)
+  params: {
+    containerRegistryName: containerRegistryName
+    principalId: runtimeIdentityPrincipalId
+  }
+}
+
 module regionalApp './modules/container-app-region.bicep' = {
   name: 'application-container-apps'
+  dependsOn: [
+    registryPull
+  ]
   params: {
     prefix: nameToken
     suffix: suffix
@@ -94,19 +107,10 @@ module regionalApp './modules/container-app-region.bicep' = {
     runtimeIdentityClientId: runtimeIdentityClientId
     retailDatabaseFqdn: databaseMode == 'azureSql'
       ? primaryDatabaseFqdn
-      : managedInstance.?outputs.?fullyQualifiedDomainName ?? ''
+      : ''
     retailDatabaseName: retailDatabaseName
     keyVaultSecretReferences: keyVaultSecretReferences
     tags: tags
-  }
-}
-
-module registryPull './modules/acr-pull-role.bicep' = {
-  name: 'application-acr-pull'
-  scope: resourceGroup(containerRegistryResourceGroupName)
-  params: {
-    containerRegistryName: containerRegistryName
-    principalId: regionalApp.outputs.principalId
   }
 }
 

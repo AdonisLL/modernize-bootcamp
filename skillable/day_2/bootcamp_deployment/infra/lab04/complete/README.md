@@ -35,8 +35,10 @@ Container App.
 
 The entry point returns a unified infrastructure database FQDN, BACPAC
 database name (`eshop_ai`), and type. The Container App separately targets the
-future migrated retail database `eshop` through a Bicep-owned passwordless
-environment variable.
+future migrated retail database `eshop` through a passwordless environment
+variable. For SQL MI, the importer finalizes that variable after provisioning
+because the service generates the managed-instance DNS zone. This keeps
+Container Apps provisioning independent of the long-running SQL MI resource.
 
 ### `global.bicep`
 
@@ -60,6 +62,9 @@ it because SQL MI is now selected exclusively through `databaseMode`.
 - The code-build identity receives only ACR push. The code-deployment identity
   receives only Container App contributor and Front Door reader permissions at
   resource scope.
+- The retail runtime identity receives ACR pull before Container App creation
+  and is used for registry authentication, avoiding the creation-time cycle of
+  a system-assigned image-pull identity.
 - The user-assigned retail runtime identity resolves Key Vault-backed ACA
   secrets. Lab 05 grants its contained `eshop` database user only
   `db_datareader` and `db_datawriter` after migration.

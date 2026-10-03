@@ -10,6 +10,9 @@ $bootstrapPath = Join-Path $projectRoot 'infra\lab04\complete\bootstrap.bicep'
 $containerModulePath = Join-Path `
     $projectRoot `
     'infra\lab04\complete\modules\container-app-region.bicep'
+$regionalNetworkPath = Join-Path `
+    $projectRoot `
+    'infra\lab04\complete\modules\regional-network.bicep'
 $secondaryPath = Join-Path $projectRoot 'infra\lab04\complete\secondary.bicep'
 $mainPath = Join-Path $projectRoot 'infra\main.bicep'
 $configurePath = Join-Path `
@@ -43,6 +46,7 @@ function Assert-Contract {
 
 $bootstrap = Get-Content -LiteralPath $bootstrapPath -Raw
 $containerModule = Get-Content -LiteralPath $containerModulePath -Raw
+$regionalNetwork = Get-Content -LiteralPath $regionalNetworkPath -Raw
 $secondary = Get-Content -LiteralPath $secondaryPath -Raw
 $main = Get-Content -LiteralPath $mainPath -Raw
 $configure = Get-Content -LiteralPath $configurePath -Raw
@@ -97,6 +101,31 @@ Assert-Contract (
 Assert-Contract (
     $containerModule -notmatch '(?s)for secret in keyVaultSecretReferences:\s*\{[^}]*value:'
 ) 'Key Vault secret-reference objects must never contain literal secret values.'
+Assert-Contract (
+    $containerModule -match "server: containerRegistryLoginServer\s+identity: runtimeIdentityResourceId" -and
+    $containerModule -notmatch "identity: 'system'" -and
+    $secondary -match 'principalId: runtimeIdentityPrincipalId' -and
+    $secondary -match 'dependsOn:\s*\[\s*registryPull\s*\]'
+) 'ACR pull access must use the pre-authorized runtime identity before the Container App is created.'
+Assert-Contract (
+    $containerModule -match '(?m)^\s*zoneRedundant: false\s*$' -and
+    $containerModule -notmatch '(?m)^\s*zoneRedundant: true\s*$'
+) 'The sample Container Apps environment must explicitly disable zone redundancy.'
+Assert-Contract (
+    $secondary -match "retailDatabaseFqdn: databaseMode == 'azureSql'\s+\? primaryDatabaseFqdn\s+: ''" -and
+    $secondary -notmatch 'retailDatabaseFqdn:[^\r\n]*managedInstance' -and
+    $main -match 'runtimeIdentityPrincipalId: bootstrap\.outputs\.runtimeIdentityPrincipalId'
+) 'Container Apps must not wait for SQL Managed Instance provisioning.'
+Assert-Contract (
+    $regionalNetwork -match 'mi-healthprobe-in-' -and
+    $regionalNetwork -match 'mi-internal-in-' -and
+    $regionalNetwork -match 'mi-internal-out-' -and
+    $regionalNetwork -match 'subnet-\$\{managedInstanceAddressToken\}' -and
+    $regionalNetwork.Contains(
+        "var managedInstanceAddressToken = replace(replace(managedInstanceAddressPrefix, '.', '-'), '/', '-')"
+    ) -and
+    $regionalNetwork -notmatch '(?m)^\s*routes:\s*\[\]\s*$'
+) 'SQL MI networking must declare the Network Intent Policy rules and exact-match route on reruns.'
 
 Assert-Contract (
     $retailWorkflow -notmatch '--set-env-vars' -and
