@@ -1,0 +1,19 @@
+<AuthorizeView>
+    <Authorized>
+        <span class="user-chip" title="Signed in">
+            <i class="bi bi-person-circle"></i>
+            <span class="d-none d-lg-inline">@context.User.Identity?.Name</span>
+        </span>
+        <form method="post" action="account/logout" data-enhance="false" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-light">
+                <i class="bi bi-box-arrow-right"></i>
+                <span class="d-none d-sm-inline">Log out</span>
+            </button>
+        </form>
+    </Authorized>
+    <NotAuthorized>
+        <a class="btn btn-sm btn-light fw-semibold" href="account/login">
+            <i class="bi bi-box-arrow-in-right"></i> Log in
+        </a>
+    </NotAuthorized>
+</AuthorizeView>

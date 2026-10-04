@@ -1,0 +1,63 @@
+@page "/account/login"
+
+<PageTitle>Log in &mdash; eShopLite</PageTitle>
+
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-head">
+            <div class="auth-badge"><i class="bi bi-box-arrow-in-right"></i></div>
+            <h1 class="h3 mb-1">Welcome back</h1>
+            <p class="text-muted mb-0">Sign in to check out and view your orders.</p>
+        </div>
+
+        @if (HasError)
+        {
+            <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                <i class="bi bi-exclamation-circle"></i>
+                <div>Invalid user name or password.</div>
+            </div>
+        }
+
+        <form method="post" action="account/login" data-enhance="false" class="auth-form">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+
+            <div class="mb-3">
+                <label class="form-label" for="userName">User name</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input id="userName" name="userName" class="form-control" autofocus required autocomplete="username" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="password">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input id="password" name="password" type="password" class="form-control" required autocomplete="current-password" />
+                </div>
+            </div>
+
+            <div class="form-check mb-3">
+                <input id="rememberMe" name="rememberMe" value="true" type="checkbox" class="form-check-input" />
+                <label class="form-check-label" for="rememberMe">Remember me</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 btn-lg">
+                <i class="bi bi-box-arrow-in-right"></i> Log in
+            </button>
+        </form>
+
+        <p class="text-muted small text-center mt-3 mb-0">
+            Demo account: <code>alice</code> / <code>Password1!</code>
+        </p>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")] public string Error { get; set; }
+
+    private bool HasError => !string.IsNullOrEmpty(Error);
+}

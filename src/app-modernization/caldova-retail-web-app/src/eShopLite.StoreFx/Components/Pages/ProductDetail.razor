@@ -1,0 +1,104 @@
+@page "/product/{Id:int}"
+@page "/home/product/{Id:int}"
+@rendermode AppRenderModes.InteractiveServerNoPrerender
+@inject IStoreService StoreService
+@inject CartState Cart
+@inject NavigationManager Navigation
+
+<PageTitle>@(_product?.Name ?? "Product") &mdash; eShopLite</PageTitle>
+
+<p>
+    <a class="btn btn-link ps-0" href="products"><i class="bi bi-arrow-left"></i> Back to products</a>
+</p>
+
+@if (_error)
+{
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Unable to load this product. The catalogue database is not available.</div>
+}
+else if (_loading)
+{
+    <div class="loading-state"><span class="spinner-border text-primary" role="status"></span><span>Loading&hellip;</span></div>
+}
+else if (_product is null)
+{
+    <div class="empty-state">
+        <i class="bi bi-box-seam"></i>
+        <p>Sorry, that product could not be found.</p>
+        <a class="btn btn-primary" href="products">Browse products</a>
+    </div>
+}
+else
+{
+    @if (_flash is not null)
+    {
+        <div class="alert alert-success d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-check-circle-fill"></i><div>@_flash</div>
+        </div>
+    }
+
+    <div class="product-detail row g-4 align-items-center">
+        <div class="col-md-5">
+            <div class="product-detail-media">
+                <img src="/images/@_product.ImageUrl" alt="@_product.Name" />
+            </div>
+        </div>
+        <div class="col-md-7">
+            <h1 id="title" class="mb-2">@_product.Name</h1>
+            <p class="price fs-3 mb-3">USD @_product.Price.ToString("N2")</p>
+            <p class="lead text-muted">@_product.Description</p>
+
+            <div class="d-flex gap-2 align-items-center mt-4">
+                <label class="form-label mb-0" for="qty">Quantity</label>
+                <input id="qty" type="number" min="1" @bind="_quantity" class="form-control qty-input" />
+                <button class="btn btn-primary btn-lg" @onclick="AddToCart">
+                    <i class="bi bi-cart-plus"></i> Add to cart
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Product _product;
+    private bool _loading = true;
+    private bool _error;
+    private int _quantity = 1;
+    private string _flash;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _error = false;
+        _product = null;
+        StateHasChanged();
+
+        var id = Id;
+        try
+        {
+            _product = await Task.Run(() => StoreService.GetProduct(id));
+        }
+        catch
+        {
+            _error = true;
+            _product = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task AddToCart()
+    {
+        if (_product is null)
+        {
+            return;
+        }
+
+        var qty = _quantity < 1 ? 1 : _quantity;
+        await Cart.AddAsync(_product, qty);
+        _flash = $"Added {qty} \u00d7 \"{_product.Name}\" to your cart.";
+    }
+}

@@ -1,0 +1,87 @@
+@page "/cart"
+@page "/cart/index"
+@rendermode AppRenderModes.InteractiveServerNoPrerender
+@implements IDisposable
+@inject CartState Cart
+
+<PageTitle>Your Cart &mdash; eShopLite</PageTitle>
+
+<div class="page-head"><h1><i class="bi bi-cart3"></i> Your cart</h1></div>
+
+@if (!Cart.Loaded)
+{
+    <div class="loading-state"><span class="spinner-border text-primary" role="status"></span><span>Loading your cart&hellip;</span></div>
+}
+else if (Cart.Cart.IsEmpty)
+{
+    <div class="empty-state">
+        <i class="bi bi-cart-x"></i>
+        <p>Your cart is empty.</p>
+        <a class="btn btn-primary" href="products"><i class="bi bi-grid-3x3-gap"></i> Browse products</a>
+    </div>
+}
+else
+{
+    <div class="cart-panel">
+        @foreach (var item in Cart.Cart.Items)
+        {
+            <div class="cart-row" @key="item.ProductId">
+                <img class="cart-thumb" src="/images/@item.ImageUrl" alt="@item.Name" />
+                <div class="cart-info">
+                    <div class="cart-name">@item.Name</div>
+                    <div class="cart-unit text-muted">USD @item.UnitPrice.ToString("N2") each</div>
+                </div>
+                <div class="qty-stepper" role="group" aria-label="Quantity for @item.Name">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => Decrement(item)" aria-label="Decrease quantity">
+                        <i class="bi bi-dash"></i>
+                    </button>
+                    <input type="number" min="1" value="@item.Quantity" class="form-control form-control-sm"
+                           @onchange="e => UpdateQty(item.ProductId, e.Value)" aria-label="Quantity" />
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => Increment(item)" aria-label="Increase quantity">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+                <div class="cart-line-total">USD @item.LineTotal.ToString("N2")</div>
+                <button class="btn btn-outline-danger btn-sm cart-remove" @onclick="() => Remove(item.ProductId)" aria-label="Remove @item.Name">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        }
+
+        <div class="cart-summary">
+            <span class="cart-total-label">Total</span>
+            <span class="cart-total-value">USD @Cart.Cart.Total.ToString("N2")</span>
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
+            <a class="btn btn-outline-secondary" href="products"><i class="bi bi-arrow-left"></i> Continue shopping</a>
+            <a class="btn btn-success" href="cart/checkout">Checkout <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Cart.OnChange += OnChanged;
+        await Cart.EnsureLoadedAsync();
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task UpdateQty(int productId, object value)
+    {
+        if (int.TryParse(value?.ToString(), out var qty))
+        {
+            await Cart.SetQuantityAsync(productId, qty);
+        }
+    }
+
+    private async Task Increment(CartItem item) => await Cart.SetQuantityAsync(item.ProductId, item.Quantity + 1);
+
+    private async Task Decrement(CartItem item) => await Cart.SetQuantityAsync(item.ProductId, item.Quantity - 1);
+
+    private async Task Remove(int productId) => await Cart.RemoveAsync(productId);
+
+    public void Dispose() => Cart.OnChange -= OnChanged;
+}

@@ -22,20 +22,20 @@ namespace eShopLite.StoreFx.Services
         // line is booked to the first store until the UI lets the customer choose one.
         private const int DefaultStoreId = 1;
 
-        private readonly IStoreDbContext _context;
+        private readonly Func<IStoreDbContext> _contextFactory;
 
-        public OrderService(IStoreDbContext context)
+        public OrderService(Func<IStoreDbContext> contextFactory)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         }
 
         // The app identifies users by name everywhere; the orders table keys off the user id.
         // Returns 0 (never a real id) when the name is unknown, so callers just find nothing.
-        private int ResolveUserId(string userName)
+        private static int ResolveUserId(IStoreDbContext context, string userName)
         {
             if (string.IsNullOrWhiteSpace(userName)) return 0;
 
-            return _context.Users
+            return context.Users
                 .Where(u => u.UserName == userName)
                 .Select(u => u.Id)
                 .FirstOrDefault();
@@ -47,7 +47,9 @@ namespace eShopLite.StoreFx.Services
             if (string.IsNullOrWhiteSpace(userName)) throw new ArgumentException("User name is required.", nameof(userName));
             if (cart.IsEmpty) throw new InvalidOperationException("Cannot place an order for an empty cart.");
 
-            var userId = ResolveUserId(userName);
+            using var context = _contextFactory();
+
+            var userId = ResolveUserId(context, userName);
             if (userId == 0) throw new InvalidOperationException("Unknown user '" + userName + "'.");
 
             var order = new Order
@@ -69,26 +71,30 @@ namespace eShopLite.StoreFx.Services
                 });
             }
 
-            _context.Orders.Add(order);
-            _context.SaveChanges();
+            context.Orders.Add(order);
+            context.SaveChanges();
 
             return order;
         }
 
         public Order GetOrder(int id, string userName)
         {
-            var userId = ResolveUserId(userName);
+            using var context = _contextFactory();
 
-            return _context.Orders
+            var userId = ResolveUserId(context, userName);
+
+            return context.Orders
                 .Include(o => o.Lines)
                 .FirstOrDefault(o => o.Id == id && o.UserId == userId);
         }
 
         public IEnumerable<Order> GetOrdersForUser(string userName)
         {
-            var userId = ResolveUserId(userName);
+            using var context = _contextFactory();
 
-            return _context.Orders
+            var userId = ResolveUserId(context, userName);
+
+            return context.Orders
                 .Include(o => o.Lines)
                 .Where(o => o.UserId == userId)
                 .OrderByDescending(o => o.PlacedUtc)
@@ -97,7 +103,9 @@ namespace eShopLite.StoreFx.Services
 
         public OrderSummary GetSummary(string userName)
         {
-            return _context.GetOrderSummary(ResolveUserId(userName));
+            using var context = _contextFactory();
+
+            return context.GetOrderSummary(ResolveUserId(context, userName));
         }
     }
 }

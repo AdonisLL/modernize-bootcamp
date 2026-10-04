@@ -1,0 +1,62 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <header class="app-header">
+        <nav class="navbar navbar-expand-md">
+            <div class="container">
+                <a class="navbar-brand brand" href="">
+                    <i class="bi bi-bag-heart-fill"></i>
+                    <span>eShopLite</span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                        aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="products">
+                                <i class="bi bi-grid-3x3-gap"></i> Products
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="stores">
+                                <i class="bi bi-geo-alt"></i> Stores
+                            </NavLink>
+                        </li>
+                        <AuthorizeView>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="orders">
+                                    <i class="bi bi-receipt"></i> My orders
+                                </NavLink>
+                            </li>
+                        </AuthorizeView>
+                    </ul>
+                    <div class="d-flex align-items-center gap-2 nav-actions">
+                        <CartBadge />
+                        <LoginDisplay />
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="app-main">
+        <div class="container py-4">
+            @Body
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="fw-semibold"><i class="bi bi-bag-heart"></i> eShopLite</span>
+            <span class="text-muted small">&copy; @DateTime.Now.Year eShopLite &mdash; outdoor gear, modernised with Blazor.</span>
+        </div>
+    </footer>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

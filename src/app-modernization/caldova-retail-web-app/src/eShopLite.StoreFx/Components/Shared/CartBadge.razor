@@ -1,0 +1,23 @@
+@implements IDisposable
+@inject CartState Cart
+
+<a class="cart-badge" href="cart" aria-label="View cart (@Cart.Cart.ItemCount items)">
+    <i class="bi bi-cart3"></i>
+    <span class="cart-label">Cart</span>
+    @if (Cart.Cart.ItemCount > 0)
+    {
+        <span class="badge rounded-pill cart-count">@Cart.Cart.ItemCount</span>
+    }
+</a>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Cart.OnChange += OnCartChanged;
+        await Cart.EnsureLoadedAsync();
+    }
+
+    private void OnCartChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Cart.OnChange -= OnCartChanged;
+}

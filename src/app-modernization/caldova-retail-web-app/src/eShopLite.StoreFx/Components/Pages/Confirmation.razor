@@ -1,0 +1,97 @@
+@page "/cart/confirmation/{Id:int}"
+@attribute [Authorize]
+@rendermode AppRenderModes.InteractiveServerNoPrerender
+@inject IOrderService OrderService
+
+<PageTitle>Order Confirmed &mdash; eShopLite</PageTitle>
+
+<div class="page-head"><h1><i class="bi bi-patch-check"></i> Order confirmed</h1></div>
+
+@if (_error)
+{
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Unable to load this order.</div>
+}
+else if (_loading)
+{
+    <div class="loading-state"><span class="spinner-border text-primary" role="status"></span><span>Loading receipt&hellip;</span></div>
+}
+else if (_order is null)
+{
+    <div class="empty-state">
+        <i class="bi bi-receipt-cutoff"></i>
+        <p>That order could not be found.</p>
+        <a class="btn btn-primary" href="orders">My orders</a>
+    </div>
+}
+else
+{
+    <div class="alert alert-success d-flex align-items-center gap-2">
+        <i class="bi bi-check-circle-fill fs-4"></i>
+        <div>
+            Thanks, <strong>@_userName</strong> &mdash; order <strong>#@_order.Id</strong> was placed on
+            @_order.PlacedUtc.ToString("yyyy-MM-dd HH:mm") UTC.
+        </div>
+    </div>
+
+    <div class="cart-panel">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th class="text-center">Qty</th>
+                    <th class="text-end">Unit price</th>
+                    <th class="text-end">Line total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var line in _order.Lines)
+                {
+                    <tr>
+                        <td>@line.ProductName</td>
+                        <td class="text-center">@line.Quantity</td>
+                        <td class="text-end">USD @line.UnitPrice.ToString("N2")</td>
+                        <td class="text-end">USD @((line.UnitPrice * line.Quantity).ToString("N2"))</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Total</th>
+                    <th class="text-end">USD @_order.Total.ToString("N2")</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <a class="btn btn-primary mt-3" href="products"><i class="bi bi-grid-3x3-gap"></i> Continue shopping</a>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; }
+
+    private Order _order;
+    private string _userName;
+    private bool _loading = true;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState;
+        _userName = state.User.Identity?.Name;
+
+        var id = Id;
+        try
+        {
+            _order = await Task.Run(() => OrderService.GetOrder(id, _userName));
+        }
+        catch
+        {
+            _error = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

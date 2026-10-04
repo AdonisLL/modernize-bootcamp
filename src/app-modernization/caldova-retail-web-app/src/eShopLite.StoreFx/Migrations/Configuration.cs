@@ -31,7 +31,7 @@ namespace eShopLite.StoreFx.Migrations
 
         private static void SeedUsers(StoreDbContext context)
         {
-            var auth = new Services.AuthService(context);
+            var auth = new Services.AuthService(() => context);
 
             AddUserIfMissing(context, auth, "alice", "alice@eshoplite.local", "Password1!", "Customer");
             AddUserIfMissing(context, auth, "bob", "bob@eshoplite.local", "Password1!", "Customer");

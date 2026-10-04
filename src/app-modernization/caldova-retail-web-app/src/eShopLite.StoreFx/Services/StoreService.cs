@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -22,16 +22,18 @@ namespace eShopLite.StoreFx.Services
         private const int MaxProducts = 9;
         private const int MaxStores = 15;
 
-        private readonly IStoreDbContext _context;
+        private readonly Func<IStoreDbContext> _contextFactory;
 
-        public StoreService(IStoreDbContext context)
+        public StoreService(Func<IStoreDbContext> contextFactory)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         }
 
         public IEnumerable<Product> GetProducts()
         {
-            return _context.Products
+            using var context = _contextFactory();
+
+            return context.Products
                 .OrderBy(p => p.Id)
                 .Take(MaxProducts)
                 .ToList();
@@ -46,7 +48,9 @@ namespace eShopLite.StoreFx.Services
 
             var term = searchTerm.Trim();
 
-            return _context.Products
+            using var context = _contextFactory();
+
+            return context.Products
                 .Where(p => p.Name.Contains(term) || p.Description.Contains(term))
                 .OrderBy(p => p.Name)
                 .Take(MaxProducts)
@@ -55,12 +59,16 @@ namespace eShopLite.StoreFx.Services
 
         public Product GetProduct(int id)
         {
-            return _context.Products.FirstOrDefault(p => p.Id == id);
+            using var context = _contextFactory();
+
+            return context.Products.FirstOrDefault(p => p.Id == id);
         }
 
         public IEnumerable<StoreInfo> GetStores()
         {
-            return _context.Stores
+            using var context = _contextFactory();
+
+            return context.Stores
                 .OrderBy(s => s.Id)
                 .Take(MaxStores)
                 .ToList();

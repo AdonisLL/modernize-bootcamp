@@ -1,0 +1,127 @@
+@page "/orders"
+@page "/order"
+@page "/order/index"
+@attribute [Authorize]
+@rendermode AppRenderModes.InteractiveServerNoPrerender
+@inject IOrderService OrderService
+
+<PageTitle>My Orders &mdash; eShopLite</PageTitle>
+
+<div class="page-head"><h1><i class="bi bi-receipt"></i> My orders</h1></div>
+
+@if (_error)
+{
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Unable to load your orders. The database is not available.</div>
+}
+else if (_loading)
+{
+    <div class="loading-state"><span class="spinner-border text-primary" role="status"></span><span>Loading your orders&hellip;</span></div>
+}
+else
+{
+    @if (_summary is not null)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="bi bi-bag"></i></div>
+                    <div>
+                        <div class="stat-label">Orders placed</div>
+                        <div class="stat-value">@_summary.OrderCount</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+                    <div>
+                        <div class="stat-label">Lifetime total</div>
+                        <div class="stat-value">USD @_summary.LifetimeTotal.ToString("N2")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="bi bi-calendar-event"></i></div>
+                    <div>
+                        <div class="stat-label">First order</div>
+                        <div class="stat-value">@(_summary.FirstOrderUtc.HasValue ? _summary.FirstOrderUtc.Value.ToString("yyyy-MM-dd") : "\u2014")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_orders is null || !_orders.Any())
+    {
+        <div class="empty-state">
+            <i class="bi bi-inboxes"></i>
+            <p>You have not placed any orders yet.</p>
+            <a class="btn btn-primary" href="products">Browse products</a>
+        </div>
+    }
+    else
+    {
+        <div class="cart-panel">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Placed (UTC)</th>
+                        <th class="text-center">Items</th>
+                        <th class="text-end">Total</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in _orders)
+                    {
+                        <tr>
+                            <td><span class="badge text-bg-light">#@order.Id</span></td>
+                            <td>@order.PlacedUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="text-center">@order.Lines.Sum(l => l.Quantity)</td>
+                            <td class="text-end">USD @order.Total.ToString("N2")</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"cart/confirmation/{order.Id}")">
+                                    <i class="bi bi-receipt"></i> View receipt
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; }
+
+    private List<Order> _orders;
+    private OrderSummary _summary;
+    private bool _loading = true;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState;
+        var userName = state.User.Identity?.Name;
+
+        try
+        {
+            var result = await Task.Run(() =>
+                (Summary: OrderService.GetSummary(userName),
+                 Orders: OrderService.GetOrdersForUser(userName).ToList()));
+            _summary = result.Summary;
+            _orders = result.Orders;
+        }
+        catch
+        {
+            _error = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

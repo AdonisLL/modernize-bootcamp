@@ -21,11 +21,11 @@ namespace eShopLite.StoreFx.Services
     /// </summary>
     public class AuthService : IAuthService
     {
-        private readonly IStoreDbContext _context;
+        private readonly Func<IStoreDbContext> _contextFactory;
 
-        public AuthService(IStoreDbContext context)
+        public AuthService(Func<IStoreDbContext> contextFactory)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         }
 
         public User ValidateUser(string userName, string password)
@@ -35,7 +35,9 @@ namespace eShopLite.StoreFx.Services
                 return null;
             }
 
-            var user = _context.Users.FirstOrDefault(u => u.UserName == userName);
+            using var context = _contextFactory();
+
+            var user = context.Users.FirstOrDefault(u => u.UserName == userName);
             if (user == null || !user.IsApproved)
             {
                 return null;

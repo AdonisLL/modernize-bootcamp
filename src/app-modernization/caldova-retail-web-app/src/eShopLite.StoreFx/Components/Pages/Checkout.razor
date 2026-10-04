@@ -1,0 +1,109 @@
+@page "/cart/checkout"
+@attribute [Authorize]
+@rendermode AppRenderModes.InteractiveServerNoPrerender
+@inject CartState Cart
+@inject IOrderService OrderService
+@inject NavigationManager Navigation
+
+<PageTitle>Checkout &mdash; eShopLite</PageTitle>
+
+<div class="page-head"><h1><i class="bi bi-bag-check"></i> Checkout</h1></div>
+
+@if (!Cart.Loaded)
+{
+    <div class="loading-state"><span class="spinner-border text-primary" role="status"></span><span>Loading&hellip;</span></div>
+}
+else if (Cart.Cart.IsEmpty)
+{
+    <div class="empty-state">
+        <i class="bi bi-cart-x"></i>
+        <p>Your cart is empty.</p>
+        <a class="btn btn-primary" href="products">Browse products</a>
+    </div>
+}
+else
+{
+    <p class="text-muted">Signed in as <strong>@_userName</strong></p>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger"><i class="bi bi-exclamation-octagon"></i> @_error</div>
+    }
+
+    <div class="cart-panel">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th class="text-center">Qty</th>
+                    <th class="text-end">Line total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Cart.Cart.Items)
+                {
+                    <tr>
+                        <td>@item.Name</td>
+                        <td class="text-center">@item.Quantity</td>
+                        <td class="text-end">USD @item.LineTotal.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="2" class="text-end">Order total</th>
+                    <th class="text-end">USD @Cart.Cart.Total.ToString("N2")</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
+        <a class="btn btn-outline-secondary" href="cart"><i class="bi bi-arrow-left"></i> Back to cart</a>
+        <button class="btn btn-success btn-lg" @onclick="PlaceOrder" disabled="@_placing">
+            @if (_placing)
+            {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            <i class="bi bi-check2-circle"></i> Place order
+        </button>
+    </div>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; }
+
+    private string _userName;
+    private string _error;
+    private bool _placing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState;
+        _userName = state.User.Identity?.Name;
+        await Cart.EnsureLoadedAsync();
+    }
+
+    private async Task PlaceOrder()
+    {
+        if (Cart.Cart.IsEmpty)
+        {
+            return;
+        }
+
+        _placing = true;
+        _error = null;
+
+        try
+        {
+            var order = await Task.Run(() => OrderService.PlaceOrder(Cart.Cart, _userName));
+            await Cart.ClearAsync();
+            Navigation.NavigateTo($"cart/confirmation/{order.Id}");
+        }
+        catch (Exception ex)
+        {
+            _error = "We couldn't place your order: " + ex.Message;
+            _placing = false;
+        }
+    }
+}

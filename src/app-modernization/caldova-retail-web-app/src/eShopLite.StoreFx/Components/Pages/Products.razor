@@ -1,0 +1,138 @@
+@page "/products"
+@page "/home/products"
+@rendermode AppRenderModes.InteractiveServerNoPrerender
+@inject IStoreService StoreService
+@inject CartState Cart
+
+<PageTitle>Products &mdash; eShopLite</PageTitle>
+
+<div class="page-head">
+    <h1><i class="bi bi-grid-3x3-gap"></i> Products</h1>
+    <p class="text-muted mb-0">This component demonstrates showing products data.</p>
+</div>
+
+@if (_flash is not null)
+{
+    <div class="alert alert-success d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-check-circle-fill"></i>
+        <div>@_flash</div>
+    </div>
+}
+
+<div class="search-bar mb-4">
+    <div class="input-group input-group-lg shadow-sm">
+        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+        <input type="search" class="form-control border-start-0" placeholder="Search products by name or description"
+               aria-label="Search products" value="@_searchTerm" @oninput="OnSearchInput" />
+        @if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            <button class="btn btn-outline-secondary" type="button" @onclick="ClearSearch">Clear</button>
+        }
+    </div>
+</div>
+
+@if (_error)
+{
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Unable to load products. The catalogue database is not available.</div>
+}
+else if (_products is null)
+{
+    <div class="loading-state"><span class="spinner-border text-primary" role="status"></span><span>Loading products&hellip;</span></div>
+}
+else if (!_products.Any())
+{
+    <div class="empty-state">
+        <i class="bi bi-search"></i>
+        <p>No products matched &ldquo;@_searchTerm&rdquo;.</p>
+    </div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+        @foreach (var product in _products)
+        {
+            <div class="col">
+                <div class="product-card h-100">
+                    <a class="product-media" href="@($"product/{product.Id}")">
+                        <img src="/images/@product.ImageUrl" alt="@product.Name" loading="lazy" />
+                    </a>
+                    <div class="product-body">
+                        <h2 class="product-title">
+                            <a href="@($"product/{product.Id}")">@product.Name</a>
+                        </h2>
+                        <p class="product-desc">@product.Description</p>
+                        <div class="product-footer">
+                            <span class="price">USD @product.Price.ToString("N2")</span>
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="number" min="1" value="1" class="form-control form-control-sm qty-input"
+                                       aria-label="Quantity for @product.Name" @onchange="e => SetQty(product.Id, e.Value)" />
+                                <button class="btn btn-primary btn-sm" @onclick="() => AddToCart(product)">
+                                    <i class="bi bi-cart-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Product> _products;
+    private string _searchTerm = string.Empty;
+    private bool _error;
+    private string _flash;
+    private readonly Dictionary<int, int> _quantities = new();
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _products = null;
+        _error = false;
+        StateHasChanged();
+
+        var term = _searchTerm;
+        try
+        {
+            _products = await Task.Run(() => StoreService.SearchProducts(term).ToList());
+        }
+        catch
+        {
+            _error = true;
+            _products = null;
+        }
+    }
+
+    private Task OnSearchInput(ChangeEventArgs e)
+    {
+        _searchTerm = e.Value?.ToString() ?? string.Empty;
+        return LoadAsync();
+    }
+
+    private Task ClearSearch()
+    {
+        _searchTerm = string.Empty;
+        return LoadAsync();
+    }
+
+    private void SetQty(int productId, object value)
+    {
+        if (int.TryParse(value?.ToString(), out var qty) && qty >= 1)
+        {
+            _quantities[productId] = qty;
+        }
+        else
+        {
+            _quantities[productId] = 1;
+        }
+    }
+
+    private async Task AddToCart(Product product)
+    {
+        var qty = _quantities.TryGetValue(product.Id, out var q) ? q : 1;
+        await Cart.AddAsync(product, qty);
+        _flash = $"Added {qty} \u00d7 \"{product.Name}\" to your cart.";
+    }
+}

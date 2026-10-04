@@ -7,7 +7,7 @@ using eShopLite.StoreFx.Models;
 
 namespace eShopLite.StoreFx.Data
 {
-    public interface IStoreDbContext
+    public interface IStoreDbContext : System.IDisposable
     {
         DbSet<Product> Products { get; set; }
         DbSet<StoreInfo> Stores { get; set; }
