@@ -9,7 +9,9 @@ param(
     [ValidatePattern('^[a-zA-Z0-9._()\-]+$')]
     [string]$DeploymentName,
 
-    [string]$BacpacPath
+    [string]$BacpacPath,
+
+    [switch]$ReplaceExistingDatabase
 )
 
 Set-StrictMode -Version Latest
@@ -38,7 +40,12 @@ function Get-Lab04DeploymentValues {
     }
 
     azd env select $AzdEnvironment
-    return azd env get-values --output json | ConvertFrom-Json -AsHashtable
+    $azdValues = azd env get-values --output json | ConvertFrom-Json
+    $values = @{}
+    foreach ($property in $azdValues.PSObject.Properties) {
+        $values[$property.Name] = $property.Value
+    }
+    return $values
 }
 
 function Add-CleanupFailure {
@@ -141,9 +148,57 @@ else {
         --output tsv
 }
 if ([int]$existingDatabaseCount -gt 0) {
-    Write-Host "Database '$databaseName' already exists on '$serverName'; preserving it and skipping BACPAC import."
-    Set-Lab04ContainerAppDatabaseConfiguration
-    return
+    if (-not $ReplaceExistingDatabase) {
+        Write-Host "Database '$databaseName' already exists on '$serverName'; preserving it and skipping BACPAC import."
+        Set-Lab04ContainerAppDatabaseConfiguration
+        return
+    }
+
+    Write-Warning "Deleting existing database '$databaseName' from '$serverName' because -ReplaceExistingDatabase was specified."
+    if ($databaseMode -eq 'azureSql') {
+        az sql db delete `
+            --resource-group $resourceGroupName `
+            --server $serverName `
+            --name $databaseName `
+            --yes `
+            --output none
+    }
+    else {
+        az sql midb delete `
+            --resource-group $resourceGroupName `
+            --managed-instance $serverName `
+            --name $databaseName `
+            --yes `
+            --output none
+    }
+
+    $databaseDeleted = $false
+    for ($attempt = 1; $attempt -le 40; $attempt++) {
+        $remainingDatabaseCount = if ($databaseMode -eq 'azureSql') {
+            az sql db list `
+                --resource-group $resourceGroupName `
+                --server $serverName `
+                --query "[?name=='$databaseName'] | length(@)" `
+                --output tsv
+        }
+        else {
+            az sql midb list `
+                --resource-group $resourceGroupName `
+                --managed-instance $serverName `
+                --query "[?name=='$databaseName'] | length(@)" `
+                --output tsv
+        }
+        if ([int]$remainingDatabaseCount -eq 0) {
+            $databaseDeleted = $true
+            break
+        }
+        Start-Sleep -Seconds 15
+    }
+    if (-not $databaseDeleted) {
+        throw "Database '$databaseName' was not deleted within ten minutes."
+    }
+
+    Start-Sleep -Seconds 30
 }
 
 $sqlPackagePath = Resolve-Lab04SqlPackage -ProjectRoot $projectRoot

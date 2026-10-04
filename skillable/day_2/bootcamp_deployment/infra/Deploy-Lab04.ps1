@@ -155,29 +155,35 @@ function Approve-FrontDoorPrivateLink {
 
     $endpointReady = $false
     $endpointUri = "https://$endpointHostName/"
-    for ($attempt = 1; $attempt -le 30; $attempt++) {
+    $lastProbeFailure = 'No HTTP response was received.'
+    for ($attempt = 1; $attempt -le 60; $attempt++) {
         try {
             $response = Invoke-WebRequest `
                 -Uri $endpointUri `
                 -Method Get `
-                -TimeoutSec 30 `
-                -SkipHttpErrorCheck
+                -TimeoutSec 15 `
+                -UseBasicParsing
             if ([int]$response.StatusCode -ge 200 -and [int]$response.StatusCode -lt 400) {
                 $endpointReady = $true
                 break
             }
+            $lastProbeFailure = "HTTP $([int]$response.StatusCode) $($response.StatusDescription)"
         }
         catch {
-            if ($attempt -eq 30) {
-                throw
+            $webResponse = $_.Exception.Response
+            if ($webResponse) {
+                $lastProbeFailure = "HTTP $([int]$webResponse.StatusCode) $($webResponse.StatusDescription)"
+            }
+            else {
+                $lastProbeFailure = $_.Exception.Message
             }
         }
 
-        Start-Sleep -Seconds 20
+        Start-Sleep -Seconds 30
     }
 
     if (-not $endpointReady) {
-        throw "Front Door endpoint '$endpointUri' did not become healthy within ten minutes."
+        throw "Front Door endpoint '$endpointUri' did not become healthy within 30 minutes. Last probe: $lastProbeFailure"
     }
 
     Write-Host "Front Door Private Link is approved and '$endpointUri' is ready."

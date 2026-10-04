@@ -116,12 +116,21 @@ Assert-Contract ('Azd' -in $parameterSetNames) `
     'The importer must expose an Azd parameter set.'
 Assert-Contract ('Arm' -in $parameterSetNames) `
     'The importer must expose an Arm parameter set.'
+Assert-Contract (
+    'ReplaceExistingDatabase' -in $importCommand.Parameters.Keys
+) 'The importer must expose an explicit failed-import recovery switch.'
 
 $azureYaml = Get-Content -LiteralPath $azureYamlPath -Raw
 $postprovision = Get-Content -LiteralPath $postprovisionPath -Raw
 $deployScript = Get-Content -LiteralPath $deployScriptPath -Raw
 $helperScript = Get-Content -LiteralPath $helperPath -Raw
 $importScript = Get-Content -LiteralPath $importScriptPath -Raw
+Assert-Contract (
+    $helperScript -notmatch '\$IsWindows\s*\?' -and
+    $helperScript -notmatch '\[Convert\]::ToHexString' -and
+    $helperScript -notmatch 'SHA256\]::HashData' -and
+    $importScript -notmatch 'ConvertFrom-Json\s+-AsHashtable'
+) 'Database import scripts must avoid PowerShell 7 and newer .NET-only syntax and APIs.'
 Assert-Contract (
     $azureYaml -match '(?m)^\s*postprovision:\s*$' -and
     $azureYaml -match 'infra/hooks/postprovision\.ps1'
@@ -139,6 +148,12 @@ Assert-Contract (
     $deployScript -notmatch '\.Contains\(\s*\$VmAdminUsername,\s*\[StringComparison\]'
 ) 'VM password validation must remain compatible with Windows PowerShell and .NET Framework.'
 Assert-Contract (
+    $deployScript -notmatch '-SkipHttpErrorCheck' -and
+    $deployScript -match 'Invoke-WebRequest[\s\S]*?-UseBasicParsing' -and
+    $deployScript -match 'Last probe: \$lastProbeFailure' -and
+    $deployScript -notmatch 'if \(\$attempt -eq \d+\) \{\s*throw'
+) 'Front Door verification must use Windows PowerShell parameters and report the final HTTP failure.'
+Assert-Contract (
     $helperScript -match 'dotnet tool install Microsoft\.SqlPackage' -and
     $helperScript -match '--tool-path\s+\$temporaryPath' -and
     $helperScript -match '--add-source\s+\$script:Lab04SqlPackageFeed' -and
@@ -149,6 +164,12 @@ Assert-Contract (
     $importScript -match 'Resolve-Lab04SqlPackage\s+-ProjectRoot\s+\$projectRoot' -and
     $importScript -match '&\s+\$sqlPackagePath\s+@sqlPackageArguments'
 ) 'The importer must resolve and invoke the project-local SqlPackage executable.'
+Assert-Contract (
+    $importScript -match 'if \(-not \$ReplaceExistingDatabase\)' -and
+    $importScript -match 'az sql midb delete' -and
+    $importScript -match 'az sql db delete' -and
+    $importScript -match 'Deleting existing database'
+) 'Existing databases must only be deleted through the explicit recovery switch.'
 Assert-Contract (
     $importScript -match 'function Set-Lab04ContainerAppDatabaseConfiguration' -and
     $importScript -match 'az containerapp update' -and

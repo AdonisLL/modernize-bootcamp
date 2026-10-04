@@ -328,6 +328,17 @@ the database before rerunning because preserve-on-rerun behavior does not drop
 or repair a partially imported database. Import failures report SqlPackage and
 temporary-access cleanup errors explicitly.
 
+After confirming that `eshop_ai` was created by a failed import and contains no
+data that must be retained, retry only the import with the explicit recovery
+switch. The switch deletes exactly that database, waits for deletion, and then
+imports the BACPAC again:
+
+```powershell
+.\assets\scripts\Import-Lab04Database.ps1 `
+  -DeploymentName 'lab04-direct-deploy' `
+  -ReplaceExistingDatabase
+```
+
 A `ReferencedResourceNotProvisioned` error that reports an application VNet in
 `Updating` state during `PutSubnetOperation` is a deployment-order race. The
 network module sequences the reciprocal peerings after subnet completion; rerun

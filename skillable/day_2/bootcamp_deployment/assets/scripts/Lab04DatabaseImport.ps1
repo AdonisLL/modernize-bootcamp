@@ -23,9 +23,14 @@ function New-Lab04DatabaseImportRuleName {
 
     $value = "$SubscriptionId|$EnvironmentName|$DatabaseMode".ToLowerInvariant()
     $bytes = [Text.Encoding]::UTF8.GetBytes($value)
-    $hash = [Convert]::ToHexString(
-        [Security.Cryptography.SHA256]::HashData($bytes)
-    ).ToLowerInvariant()
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($bytes)
+    }
+    finally {
+        $sha256.Dispose()
+    }
+    $hash = [BitConverter]::ToString($hashBytes).Replace('-', '').ToLowerInvariant()
     return "AllowBacpacImport-$($hash.Substring(0, 24))"
 }
 
@@ -38,7 +43,11 @@ function Get-Lab04SqlPackageFeed {
 }
 
 function Get-Lab04SqlPackageExecutableName {
-    return $IsWindows ? 'sqlpackage.exe' : 'sqlpackage'
+    if ([IO.Path]::DirectorySeparatorChar -eq '\') {
+        return 'sqlpackage.exe'
+    }
+
+    return 'sqlpackage'
 }
 
 function Get-Lab04SqlPackageCachePath {
