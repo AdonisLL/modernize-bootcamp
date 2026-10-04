@@ -1,7 +1,8 @@
 ﻿using System.Data.Entity;
 using System.Data.Entity.ModelConfiguration.Conventions;
-using System.Data.SqlClient;
 using System.Linq;
+
+using Microsoft.Data.SqlClient;
 
 using eShopLite.StoreFx.Models;
 

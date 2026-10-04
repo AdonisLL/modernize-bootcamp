@@ -2,5 +2,5 @@
 <connectionStrings>
   <add name="StoreDbContext"
        connectionString="Data Source=20.118.204.47,1433;Initial Catalog=eShop;User ID=eshopapp;Password=REPLACE_ME;Encrypt=True;TrustServerCertificate=True;"
-       providerName="System.Data.SqlClient" />
+       providerName="Microsoft.Data.SqlClient" />
 </connectionStrings>

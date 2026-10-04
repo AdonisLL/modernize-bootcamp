@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -50,6 +51,10 @@ namespace eShopLite.StoreFx
                 });
             builder.Services.AddAuthorization();
 
+            // Liveness only: proves the process is up without touching SQL, so the ingress and the
+            // deployment pipeline can probe /health before the database is reachable.
+            builder.Services.AddHealthChecks();
+
             // A fresh, short-lived EF6 context per operation keeps circuits from holding a
             // long-lived DbContext.
             builder.Services.AddScoped<Func<IStoreDbContext>>(_ => () => new StoreDbContext(connectionString));
@@ -74,6 +79,10 @@ namespace eShopLite.StoreFx
             app.UseAuthorization();
 
             MapAuthEndpoints(app);
+
+            // Liveness endpoint for the Container Apps ingress and the deployment smoke test. The
+            // predicate runs no checks, so it returns 200 even with a placeholder connection string.
+            app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
 
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();

@@ -9,9 +9,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Holds the live SQL password. The Web SDK's **/*.config glob would otherwise copy it into
+         build and publish output; the connection string now comes from user-secrets or the
+         ConnectionStrings__StoreDbContext environment variable. -->
+    <Content Remove="connectionStrings.config" />
+    <None Remove="connectionStrings.config" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Entity Framework 6 is retained and runs on .NET 10. -->
     <PackageReference Include="EntityFramework" Version="6.5.2" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+    <!-- EF6 provider built on Microsoft.Data.SqlClient. The in-box EntityFramework.SqlServer
+         provider binds to the legacy System.Data.SqlClient, which cannot use
+         `Authentication=Active Directory Managed Identity`; Microsoft.Data.SqlClient can, so the
+         Container App reaches Azure SQL through its managed identity with no password. -->
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    <PackageReference Include="Microsoft.EntityFramework.SqlServer" Version="6.5.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 

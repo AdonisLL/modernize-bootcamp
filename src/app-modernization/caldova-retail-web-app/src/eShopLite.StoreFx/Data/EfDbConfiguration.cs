@@ -1,19 +1,23 @@
-using System.Data.Entity;
-using System.Data.Entity.Infrastructure;
+using System;
 using System.Data.Entity.SqlServer;
-using System.Data.SqlClient;
 
 namespace eShopLite.StoreFx.Data
 {
-    // EF6 on .NET (Core) has no app.config/Web.config provider registration, so the
-    // SQL Server provider and connection factory are registered in code instead.
-    public class EfDbConfiguration : DbConfiguration
+    // EF6 on .NET (Core) has no app.config/Web.config provider registration, so the SQL Server
+    // provider is registered in code. MicrosoftSqlDbConfiguration wires up the
+    // Microsoft.Data.SqlClient provider services, factory, and default connection factory, which
+    // is what lets the connection string use `Authentication=Active Directory Managed Identity`.
+    public class EfDbConfiguration : MicrosoftSqlDbConfiguration
     {
+        private const string MicrosoftSqlClientProvider = "Microsoft.Data.SqlClient";
+
         public EfDbConfiguration()
         {
-            SetProviderServices(SqlProviderServices.ProviderInvariantName, SqlProviderServices.Instance);
-            SetProviderFactory(SqlProviderServices.ProviderInvariantName, SqlClientFactory.Instance);
-            SetDefaultConnectionFactory(new SqlConnectionFactory());
+            // Azure SQL throttles and recycles connections as normal behaviour, and EF6 does not
+            // retry by default, so routine platform events would otherwise surface as 500s.
+            SetExecutionStrategy(
+                MicrosoftSqlClientProvider,
+                () => new SqlAzureExecutionStrategy(maxRetryCount: 5, maxDelay: TimeSpan.FromSeconds(10)));
         }
     }
 }

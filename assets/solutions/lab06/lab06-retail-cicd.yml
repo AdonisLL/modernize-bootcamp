@@ -3,13 +3,13 @@ name: Lab 06 - Validate and deploy retail app
 on:
   pull_request:
     paths:
-      - labs/day-1/04-deploy-to-azure/sample-app/**
+      - src/app-modernization/caldova-retail-web-app/**
       - .github/workflows/lab06-retail-cicd.yml
   push:
     branches:
       - main
     paths:
-      - labs/day-1/04-deploy-to-azure/sample-app/**
+      - src/app-modernization/caldova-retail-web-app/**
       - .github/workflows/lab06-retail-cicd.yml
   workflow_dispatch:
 
@@ -21,9 +21,9 @@ permissions:
   contents: read
 
 env:
-  SOLUTION: labs/day-1/04-deploy-to-azure/sample-app/eShopLiteFx.sln
-  BUILD_CONTEXT: labs/day-1/04-deploy-to-azure/sample-app
-  DOCKERFILE: labs/day-1/04-deploy-to-azure/sample-app/src/eShopLite.StoreFx/Dockerfile
+  SOLUTION: src/app-modernization/caldova-retail-web-app/eShopLiteFx.sln
+  BUILD_CONTEXT: src/app-modernization/caldova-retail-web-app
+  DOCKERFILE: src/app-modernization/caldova-retail-web-app/src/eShopLite.StoreFx/Dockerfile
   IMAGE_REPOSITORY: caldova-retail
 
 jobs:
@@ -150,12 +150,6 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$IMAGE_REFERENCE" == "${ACR_NAME}.azurecr.io/${IMAGE_REPOSITORY}@sha256:"* ]]
-          identity_type=$(az containerapp show \
-            --name "$APP_NAME" \
-            --resource-group "$APP_RESOURCE_GROUP" \
-            --query identity.type \
-            --output tsv)
-          [[ "$identity_type" == *SystemAssigned* ]]
           identity_json=$(az containerapp show \
             --name "$APP_NAME" \
             --resource-group "$APP_RESOURCE_GROUP" \
@@ -163,6 +157,13 @@ jobs:
             --output json)
           jq -e --arg id "$RUNTIME_IDENTITY_RESOURCE_ID" 'has($id)' \
             <<< "$identity_json" > /dev/null
+
+          registry_identity=$(az containerapp show \
+            --name "$APP_NAME" \
+            --resource-group "$APP_RESOURCE_GROUP" \
+            --query "properties.configuration.registries[?server=='${ACR_NAME}.azurecr.io'].identity | [0]" \
+            --output tsv)
+          [[ "${registry_identity,,}" == "${RUNTIME_IDENTITY_RESOURCE_ID,,}" ]]
 
           env_names=$(az containerapp show \
             --name "$APP_NAME" \
