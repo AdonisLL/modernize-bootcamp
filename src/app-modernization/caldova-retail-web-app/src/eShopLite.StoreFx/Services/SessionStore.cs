@@ -1,4 +1,6 @@
-using System.Web;
+using System.Text.Json;
+
+using Microsoft.AspNetCore.Http;
 
 namespace eShopLite.StoreFx.Services
 {
@@ -10,28 +12,34 @@ namespace eShopLite.StoreFx.Services
     }
 
     /// <summary>
-    /// The only place that touches HttpContext.Current. Porting to ASP.NET Core means
-    /// replacing this one class with an IHttpContextAccessor/ISession implementation.
+    /// ASP.NET Core session store. Objects are serialized to JSON because the
+    /// distributed session cache only stores strings/bytes, not live objects.
     /// </summary>
     public class HttpContextSessionStore : ISessionStore
     {
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public HttpContextSessionStore(IHttpContextAccessor httpContextAccessor)
+        {
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private ISession Session => _httpContextAccessor.HttpContext?.Session;
+
         public T Get<T>(string key) where T : class
         {
-            return HttpContext.Current?.Session?[key] as T;
+            var json = Session?.GetString(key);
+            return string.IsNullOrEmpty(json) ? null : JsonSerializer.Deserialize<T>(json);
         }
 
         public void Set<T>(string key, T value) where T : class
         {
-            var session = HttpContext.Current?.Session;
-            if (session != null)
-            {
-                session[key] = value;
-            }
+            Session?.SetString(key, JsonSerializer.Serialize(value));
         }
 
         public void Remove(string key)
         {
-            HttpContext.Current?.Session?.Remove(key);
+            Session?.Remove(key);
         }
     }
 }

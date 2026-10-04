@@ -70,7 +70,7 @@
               {
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="productId" value="@product.Id" />
-                <input type="hidden" name="returnUrl" value="@Request.Url.PathAndQuery" />
+                <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
                 <label class="visually-hidden" for="qty-@product.Id">Quantity for @product.Name</label>
                 <input type="number" id="qty-@product.Id" name="quantity" value="1" min="1"
                        class="form-control form-control-sm" style="width: 5rem;" />

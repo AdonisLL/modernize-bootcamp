@@ -22,8 +22,8 @@
           <li>@Html.ActionLink("Stores", "Stores", "Home", new { area = "" }, new { @class = "nav-link" })</li>
         </ul>
         <ul class="navbar-nav ms-auto align-items-center">
-          @Html.Partial("_LoginPartial")
-          <li class="nav-item ms-3">@Html.Partial("_CartPartial")</li>
+          <partial name="_LoginPartial" />
+          <li class="nav-item ms-3"><partial name="_CartPartial" /></li>
         </ul>
       </div>
     </div>

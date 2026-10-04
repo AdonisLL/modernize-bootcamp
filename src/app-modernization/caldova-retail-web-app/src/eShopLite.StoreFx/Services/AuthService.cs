@@ -57,11 +57,7 @@ namespace eShopLite.StoreFx.Services
 
         public string CreateSalt()
         {
-            var buffer = new byte[16];
-            using (var rng = new RNGCryptoServiceProvider())
-            {
-                rng.GetBytes(buffer);
-            }
+            var buffer = RandomNumberGenerator.GetBytes(16);
 
             return Convert.ToBase64String(buffer);
         }

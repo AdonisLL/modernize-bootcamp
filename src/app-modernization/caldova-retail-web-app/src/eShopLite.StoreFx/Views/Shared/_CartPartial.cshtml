@@ -1,8 +1,9 @@
 @using eShopLite.StoreFx.Models
 @using eShopLite.StoreFx.Services
+@inject ISessionStore Session
 @{
-  // LEGACY BY DESIGN: view reads InProc session directly instead of receiving a view model.
-  var cart = System.Web.HttpContext.Current.Session[SessionCartService.SessionKey] as Cart ?? new Cart();
+  // LEGACY BY DESIGN: the view reads session directly instead of receiving a view model.
+  var cart = Session.Get<Cart>(SessionCartService.SessionKey) ?? new Cart();
 }
 <a href="@Url.Action("Index", "Cart")" class="nav-link position-relative d-inline-flex align-items-center" aria-label="Cart (@cart.ItemCount items)">
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">

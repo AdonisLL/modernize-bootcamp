@@ -1,4 +1,5 @@
-using System.Web.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 using eShopLite.StoreFx.Services;
 
@@ -31,7 +32,7 @@ namespace eShopLite.StoreFx.Controllers
             var product = _storeService.GetProduct(productId);
             if (product == null)
             {
-                return HttpNotFound();
+                return NotFound();
             }
 
             if (quantity < 1)
@@ -56,7 +57,7 @@ namespace eShopLite.StoreFx.Controllers
             var product = _storeService.GetProduct(productId);
             if (product == null)
             {
-                return HttpNotFound();
+                return NotFound();
             }
 
             var cart = _cartService.GetCart();
@@ -122,10 +123,11 @@ namespace eShopLite.StoreFx.Controllers
             var order = _orderService.GetOrder(id, User.Identity.Name);
             if (order == null)
             {
-                return HttpNotFound();
+                return NotFound();
             }
 
             return View(order);
         }
     }
 }
+

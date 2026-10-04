@@ -1,7 +1,13 @@
 using System;
-using System.Web;
-using System.Web.Mvc;
-using System.Web.Security;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
+
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 using eShopLite.StoreFx.Models;
 using eShopLite.StoreFx.Services;
@@ -19,7 +25,8 @@ namespace eShopLite.StoreFx.Controllers
         }
 
         [AllowAnonymous]
-        public ActionResult Login(string returnUrl)
+        [HttpGet]
+        public IActionResult Login(string returnUrl)
         {
             ViewBag.ReturnUrl = returnUrl;
 
@@ -29,7 +36,7 @@ namespace eShopLite.StoreFx.Controllers
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        public ActionResult Login(LoginViewModel model, string returnUrl)
+        public async Task<IActionResult> Login(LoginViewModel model, string returnUrl)
         {
             ViewBag.ReturnUrl = returnUrl;
 
@@ -46,7 +53,7 @@ namespace eShopLite.StoreFx.Controllers
                 return View(model);
             }
 
-            IssueAuthCookie(user, model.RememberMe);
+            await IssueAuthCookieAsync(user, model.RememberMe);
 
             if (Url.IsLocalUrl(returnUrl))
             {
@@ -58,40 +65,40 @@ namespace eShopLite.StoreFx.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            FormsAuthentication.SignOut();
-            Session.Abandon();
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            HttpContext.Session.Clear();
 
             return RedirectToAction("Index", "Home");
         }
 
-        // Roles are packed into the ticket's UserData and unpacked in Global.asax
-        // (Application_PostAuthenticateRequest) - the classic Forms auth pattern.
-        private void IssueAuthCookie(User user, bool persistent)
+        // Roles are emitted as role claims on the auth cookie, so [Authorize(Roles = "...")]
+        // and User.IsInRole work on every request without any post-authenticate unpacking.
+        private async Task IssueAuthCookieAsync(User user, bool persistent)
         {
-            var ticket = new FormsAuthenticationTicket(
-                version: 1,
-                name: user.UserName,
-                issueDate: DateTime.Now,
-                expiration: DateTime.Now.AddMinutes(FormsAuthentication.Timeout.TotalMinutes),
-                isPersistent: persistent,
-                userData: user.Roles ?? string.Empty,
-                cookiePath: FormsAuthentication.FormsCookiePath);
+            var claims = new List<Claim> { new Claim(ClaimTypes.Name, user.UserName) };
 
-            var cookie = new HttpCookie(FormsAuthentication.FormsCookieName, FormsAuthentication.Encrypt(ticket))
-            {
-                HttpOnly = true,
-                Secure = FormsAuthentication.RequireSSL,
-                Path = FormsAuthentication.FormsCookiePath
-            };
+            var roles = (user.Roles ?? string.Empty)
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(role => role.Trim())
+                .Where(role => role.Length > 0);
 
-            if (persistent)
+            foreach (var role in roles)
             {
-                cookie.Expires = ticket.Expiration;
+                claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            Response.Cookies.Add(cookie);
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            var properties = new AuthenticationProperties
+            {
+                IsPersistent = persistent,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+            };
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, properties);
         }
     }
 }

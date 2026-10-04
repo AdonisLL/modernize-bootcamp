@@ -20,9 +20,15 @@ namespace eShopLite.StoreFx.Data
         int SaveChanges();
     }
 
+    [DbConfigurationType(typeof(EfDbConfiguration))]
     public class StoreDbContext : DbContext, IStoreDbContext
     {
-        public StoreDbContext() : base("StoreDbContext")
+        public StoreDbContext(string nameOrConnectionString) : base(nameOrConnectionString)
+        {
+        }
+
+        // Parameterless constructor for EF6 design-time/migrations tooling.
+        public StoreDbContext() : base("name=StoreDbContext")
         {
         }
 
