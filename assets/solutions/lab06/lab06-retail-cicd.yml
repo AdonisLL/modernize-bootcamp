@@ -149,21 +149,31 @@ jobs:
           IMAGE_REFERENCE: ${{ needs.build-and-push.outputs.image }}
         run: |
           set -euo pipefail
-          [[ "$IMAGE_REFERENCE" == "${ACR_NAME}.azurecr.io/${IMAGE_REPOSITORY}@sha256:"* ]]
+          if [[ "$IMAGE_REFERENCE" != "${ACR_NAME}.azurecr.io/${IMAGE_REPOSITORY}@sha256:"* ]]; then
+            echo "Image reference '$IMAGE_REFERENCE' is not an immutable digest in the expected registry." >&2
+            exit 1
+          fi
           identity_json=$(az containerapp show \
             --name "$APP_NAME" \
             --resource-group "$APP_RESOURCE_GROUP" \
             --query identity.userAssignedIdentities \
             --output json)
-          jq -e --arg id "$RUNTIME_IDENTITY_RESOURCE_ID" 'has($id)' \
-            <<< "$identity_json" > /dev/null
+          if ! jq -e --arg id "${RUNTIME_IDENTITY_RESOURCE_ID,,}" \
+            'keys | map(ascii_downcase) | index($id) != null' \
+            <<< "$identity_json" > /dev/null; then
+            echo "Runtime identity '$RUNTIME_IDENTITY_RESOURCE_ID' is not attached to Container App '$APP_NAME'." >&2
+            exit 1
+          fi
 
           registry_identity=$(az containerapp show \
             --name "$APP_NAME" \
             --resource-group "$APP_RESOURCE_GROUP" \
             --query "properties.configuration.registries[?server=='${ACR_NAME}.azurecr.io'].identity | [0]" \
             --output tsv)
-          [[ "${registry_identity,,}" == "${RUNTIME_IDENTITY_RESOURCE_ID,,}" ]]
+          if [[ "${registry_identity,,}" != "${RUNTIME_IDENTITY_RESOURCE_ID,,}" ]]; then
+            echo "Registry '$ACR_NAME' is not configured to use the expected runtime identity." >&2
+            exit 1
+          fi
 
           env_names=$(az containerapp show \
             --name "$APP_NAME" \
@@ -174,8 +184,11 @@ jobs:
             ASPNETCORE_ENVIRONMENT \
             AZURE_CLIENT_ID \
             ConnectionStrings__StoreDbContext; do
-            jq -e --arg name "$required_name" 'index($name) != null' \
-              <<< "$env_names" > /dev/null
+            if ! jq -e --arg name "$required_name" 'index($name) != null' \
+              <<< "$env_names" > /dev/null; then
+              echo "Container App '$APP_NAME' is missing required environment variable '$required_name'." >&2
+              exit 1
+            fi
           done
 
       - name: Deploy image by digest
