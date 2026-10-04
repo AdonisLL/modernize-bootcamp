@@ -313,13 +313,14 @@ privatelink.database.windows.net <b>"privatelink.database.windows.net"</b>
 
 ## Student tasks
 
-1. Identify the Lab 04 retail Container App and its system-assigned managed identity:
+1. Read the dedicated Lab 04 runtime identity resource ID:
 
    ```powershell
-   $containerApp = az containerapp list `
-     --resource-group '<application-resource-group>' `
-     --query '[0].{name:name, principalId:identity.principalId}' `
-     --output json | ConvertFrom-Json
+   $runtimeIdentityResourceId = gh variable get LAB06_RUNTIME_IDENTITY_RESOURCE_ID
+   $runtimeIdentityPrincipalId = az identity show `
+     --ids $runtimeIdentityResourceId `
+     --query principalId `
+     --output tsv
    ```
 
 2. Connect to the Azure SQL `eShop` database as the configured Microsoft Entra administrator.
@@ -327,7 +328,7 @@ privatelink.database.windows.net <b>"privatelink.database.windows.net"</b>
 
    ```sql
    CREATE USER [caldova_retail_app] FROM EXTERNAL PROVIDER
-     WITH OBJECT_ID = '<container-app-principal-id>';
+     WITH OBJECT_ID = '<runtime-identity-principal-id>';
 
    ALTER ROLE db_datareader ADD MEMBER [caldova_retail_app];
    ALTER ROLE db_datawriter ADD MEMBER [caldova_retail_app];

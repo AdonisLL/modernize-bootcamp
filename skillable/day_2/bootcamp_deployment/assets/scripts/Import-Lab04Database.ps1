@@ -72,7 +72,11 @@ $requiredValues = @(
     'LAB04_DATABASE_NAME',
     'LAB04_DATABASE_RESOURCE_GROUP',
     'LAB04_DATABASE_SERVER_NAME',
-    'LAB04_DATABASE_FQDN'
+    'LAB04_DATABASE_FQDN',
+    'LAB04_SECONDARY_RESOURCE_GROUP',
+    'LAB05_RETAIL_DATABASE_NAME',
+    'LAB06_CONTAINER_APP_NAME',
+    'LAB06_RUNTIME_IDENTITY_CLIENT_ID'
 )
 if ($values['LAB04_DATABASE_MODE'] -eq 'sqlMi') {
     $requiredValues += @('LAB04_SQL_MI_NSG_NAME', 'LAB04_SQL_MI_PUBLIC_ENDPOINT')
@@ -93,6 +97,20 @@ if ($databaseMode -notin @('azureSql', 'sqlMi')) {
 $databaseName = [string]$values['LAB04_DATABASE_NAME']
 if ($databaseName -cne 'eshop_ai') {
     throw "Expected database name 'eshop_ai', but the deployment returned '$databaseName'."
+}
+
+function Set-Lab04ContainerAppDatabaseConfiguration {
+    $retailDatabaseName = [string]$values['LAB05_RETAIL_DATABASE_NAME']
+    $runtimeIdentityClientId = [string]$values['LAB06_RUNTIME_IDENTITY_CLIENT_ID']
+    $connectionString = "Server=tcp:$($values['LAB04_DATABASE_FQDN']),1433;Initial Catalog=$retailDatabaseName;User Id=$runtimeIdentityClientId;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+
+    az containerapp update `
+        --resource-group ([string]$values['LAB04_SECONDARY_RESOURCE_GROUP']) `
+        --name ([string]$values['LAB06_CONTAINER_APP_NAME']) `
+        --set-env-vars `
+            "AZURE_CLIENT_ID=$runtimeIdentityClientId" `
+            "ConnectionStrings__StoreDbContext=$connectionString" `
+        --output none
 }
 
 if (-not $BacpacPath) {
@@ -124,6 +142,7 @@ else {
 }
 if ([int]$existingDatabaseCount -gt 0) {
     Write-Host "Database '$databaseName' already exists on '$serverName'; preserving it and skipping BACPAC import."
+    Set-Lab04ContainerAppDatabaseConfiguration
     return
 }
 
@@ -287,4 +306,5 @@ if ($cleanupFailures.Count -gt 0) {
     throw "BACPAC import completed, but temporary access cleanup failed: $($cleanupFailures -join '; ')"
 }
 
+Set-Lab04ContainerAppDatabaseConfiguration
 Write-Host "Imported '$BacpacPath' as database '$databaseName' on '$serverName'."

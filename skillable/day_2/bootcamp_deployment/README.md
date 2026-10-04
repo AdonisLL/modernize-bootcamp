@@ -177,8 +177,10 @@ replaces an existing database.
 ### Container App configuration
 
 Azure Container Apps uses revision-scoped environment variables as the
-equivalent of App Service App Settings. Bicep owns the retail app's stable
-runtime configuration:
+equivalent of App Service App Settings. Bicep owns the stable runtime
+configuration. For SQL MI, post-provision automation adds the database
+connection after the managed instance exposes its generated FQDN, allowing
+Container Apps and SQL MI to provision in parallel:
 
 - `ASPNETCORE_ENVIRONMENT=Production`
 - `AZURE_CLIENT_ID` selects the dedicated user-assigned runtime identity.
