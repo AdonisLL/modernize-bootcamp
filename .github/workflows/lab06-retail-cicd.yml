@@ -7,7 +7,7 @@ on:
       - .github/workflows/lab06-retail-cicd.yml
   push:
     branches:
-      - main
+      - convert-to-blazor
     paths:
       - src/app-modernization/caldova-retail-web-app/**
       - .github/workflows/lab06-retail-cicd.yml
@@ -75,7 +75,7 @@ jobs:
           exit 1
   build-and-push:
     name: Push immutable image
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/convert-to-blazor'
     needs: validate
     runs-on: ubuntu-latest
     environment: lab06
@@ -117,7 +117,7 @@ jobs:
           echo "reference=${login_server}/${IMAGE_REPOSITORY}@${digest}" >> "$GITHUB_OUTPUT"
   deploy:
     name: Deploy approved revision
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/convert-to-blazor'
     needs: build-and-push
     runs-on: ubuntu-latest
     environment: lab06-deploy
