@@ -7,7 +7,7 @@ on:
       - .github/workflows/lab06-retail-cicd.yml
   push:
     branches:
-      - main
+      - convert-to-blazor
     paths:
       - src/app-modernization/caldova-retail-web-app/**
       - .github/workflows/lab06-retail-cicd.yml
