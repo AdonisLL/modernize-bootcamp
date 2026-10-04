@@ -63,8 +63,10 @@ deployment as `RequiredReviewer`. The script:
    Lab 06 output contract
 2. validates the existing identities, target resources, and scoped role
    assignments without creating or changing them
-3. binds the build identity to `lab06` and the deployment identity to
-   `lab06-deploy` with environment-scoped federated credentials
+3. reads GitHub's effective OIDC subject prefix, including immutable owner and
+   repository IDs when enabled, then binds the build identity to `lab06` and
+   the deployment identity to `lab06-deploy` with environment-scoped
+   federated credentials
 4. creates both GitHub environments, restricts `lab06-deploy` to `main`, and
    requires approval with self-review disabled
 5. publishes and verifies the non-secret variables required by the workflow

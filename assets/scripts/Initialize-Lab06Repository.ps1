@@ -173,7 +173,7 @@ function Set-FederatedCredential {
 
     $credentialName = "github-$EnvironmentName"
     $issuer = 'https://token.actions.githubusercontent.com'
-    $subject = "repo:$Repository`:environment:$EnvironmentName"
+    $subject = "$federatedSubjectPrefix`:environment:$EnvironmentName"
     $audience = 'api://AzureADTokenExchange'
     $existing = @(
         @(
@@ -339,6 +339,21 @@ if ($repositoryInfo.viewerPermission -ne 'ADMIN') {
     throw "GitHub environment configuration requires ADMIN permission on '$Repository'. The authenticated account has '$($repositoryInfo.viewerPermission)' permission."
 }
 
+$oidcConfiguration = gh api `
+    --header 'X-GitHub-Api-Version: 2026-03-10' `
+    "repos/$Repository/actions/oidc/customization/sub" |
+    ConvertFrom-Json
+if (-not $oidcConfiguration.use_default) {
+    throw "Repository '$Repository' uses a custom GitHub OIDC subject template. Lab 06 requires the default environment-scoped subject template."
+}
+$federatedSubjectPrefix = [string]$oidcConfiguration.sub_claim_prefix
+if (
+    [string]::IsNullOrWhiteSpace($federatedSubjectPrefix) -or
+    -not $federatedSubjectPrefix.StartsWith('repo:')
+) {
+    throw "GitHub did not return a valid OIDC subject prefix for '$Repository'."
+}
+
 $reviewerId = gh api "users/$RequiredReviewer" --jq '.id'
 if (-not $reviewerId) {
     throw "Unable to resolve GitHub reviewer '$RequiredReviewer'."
@@ -442,6 +457,7 @@ Set-AndVerifyVariables `
 Write-Host ''
 Write-Host 'Lab 06 GitHub OIDC bootstrap completed.'
 Write-Host "Repository: $Repository"
+Write-Host "OIDC subject prefix: $federatedSubjectPrefix"
 Write-Host "Azure deployment: $($deployment.name)"
 Write-Host "Build environment and identity: $buildEnvironment / $($values.LAB06_BUILD_IDENTITY_NAME)"
 Write-Host "Protected deployment environment and identity: $deployEnvironment / $($values.LAB06_DEPLOYMENT_IDENTITY_NAME)"
