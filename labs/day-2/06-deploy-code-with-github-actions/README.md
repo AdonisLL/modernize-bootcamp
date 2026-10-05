@@ -83,12 +83,35 @@ explicitly:
   -DeploymentBranch 'main'
 ```
 
-The Azure account needs permission to read subscription deployments, resources,
-and role assignments, and to create or update federated credentials on the two
-preprovisioned managed identities. The GitHub account needs `ADMIN` permission
-on the repository. The script fails with an actionable error if either account
-lacks access or if the repository plan does not support the required deployment
-protection.
+If the hosting provider deployed the platform through separate
+resource-group-scope deployments, use the resource-group discovery variant
+instead:
+
+```powershell
+.\assets\scripts\Initialize-Lab06RepositoryFromResourceGroups.ps1 `
+  -SubscriptionId $subscriptionId `
+  -BootstrapResourceGroup '<bootstrap-resource-group>' `
+  -PrimaryResourceGroup '<primary-resource-group>' `
+  -SecondaryResourceGroup '<secondary-resource-group>' `
+  -GlobalResourceGroup '<global-resource-group>' `
+  -RequiredReviewer '<github-user-login>' `
+  -DeploymentBranch 'main'
+```
+
+This variant examines successful deployments in each supplied resource group,
+matches bootstrap, primary, secondary, and global deployments by their Bicep
+output contracts, and selects the newest match. It verifies that all four
+deployments have the same `prefix` and `suffix` parameters before changing
+GitHub. If deployment history requires an older record, pass one or more of
+`-BootstrapDeploymentName`, `-PrimaryDeploymentName`,
+`-SecondaryDeploymentName`, and `-GlobalDeploymentName`.
+
+The Azure account needs permission to read the selected subscription or
+resource-group deployment records, resources, and role assignments, and to
+create or update federated credentials on the two preprovisioned managed
+identities. The GitHub account needs `ADMIN` permission on the repository. The
+scripts fail with an actionable error if either account lacks access or if the
+repository plan does not support the required deployment protection.
 
 > [!IMPORTANT]
 > Do not run `assets/scripts/Initialize-Lab04Repository.ps1` for this step. That

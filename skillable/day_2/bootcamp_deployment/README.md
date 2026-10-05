@@ -112,6 +112,7 @@ updates.
 | [`infra/Deploy-Lab04.ps1`](./infra/Deploy-Lab04.ps1) | Direct validation, what-if, deployment, Private Link approval, and smoke test |
 | [`infra/DEPLOYMENT.md`](./infra/DEPLOYMENT.md) | Detailed direct-deployment and troubleshooting guide |
 | [`assets/scripts/Configure-Lab04GitHub.ps1`](./assets/scripts/Configure-Lab04GitHub.ps1) | Optional GitHub OIDC, identities, RBAC, environments, and variables |
+| [`assets/scripts/Initialize-Lab06RepositoryFromResourceGroups.ps1`](./assets/scripts/Initialize-Lab06RepositoryFromResourceGroups.ps1) | Lab 06-only GitHub OIDC setup from separate resource-group deployment records |
 | [`assets/scripts/Remove-Lab04Environment.ps1`](./assets/scripts/Remove-Lab04Environment.ps1) | Exact-name resource-group cleanup |
 | [`.github/workflows/lab04-deploy.yml`](./.github/workflows/lab04-deploy.yml) | Protected AZD provisioning workflow |
 
@@ -401,6 +402,29 @@ The `Arm` row must include `DeploymentName`. If it does not, update the
 checkout or remove the stale script copy being invoked; changing the Azure
 deployment name will not fix a PowerShell parameter-binding error.
 
+For a hosted platform deployed through separate resource-group-scope
+deployments, configure only the Lab 06 build and deployment environments with:
+
+```powershell
+.\assets\scripts\Initialize-Lab06RepositoryFromResourceGroups.ps1 `
+  -SubscriptionId '<subscription-id>' `
+  -BootstrapResourceGroup '<bootstrap-resource-group>' `
+  -PrimaryResourceGroup '<primary-resource-group>' `
+  -SecondaryResourceGroup '<secondary-resource-group>' `
+  -GlobalResourceGroup '<global-resource-group>' `
+  -Repository 'owner/repository' `
+  -RequiredReviewer '<github-user-login>' `
+  -DeploymentBranch 'main'
+```
+
+The script discovers the newest successful deployment in each resource group
+by its output contract rather than its name. It requires consistent `prefix`
+and `suffix` parameters across the selected deployments, validates the existing
+identities, resources, and RBAC, and then configures `lab06` and
+`lab06-deploy`. Use the optional `-BootstrapDeploymentName`,
+`-PrimaryDeploymentName`, `-SecondaryDeploymentName`, or
+`-GlobalDeploymentName` parameters to select a specific historical deployment.
+
 The setup creates separate identities for:
 
 - infrastructure preview
@@ -465,6 +489,12 @@ Validate the GitHub OIDC, workflow, PowerShell, and Bicep parameter contracts:
 
 ```powershell
 .\tests\Validate-Lab04OidcContracts.ps1
+```
+
+Validate the Lab 06 resource-group deployment discovery and OIDC contracts:
+
+```powershell
+.\tests\Validate-Lab06ResourceGroupOidcContracts.ps1
 ```
 
 Validate BACPAC import naming, module, hook, path, and temporary-rule
